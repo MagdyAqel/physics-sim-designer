@@ -1,0 +1,1302 @@
+<title>مصمم المحاكاة الفيزيائية</title>
+<style>
+  :root {
+    --bg: #10161b;
+    --panel: #1a2229;
+    --panel-2: #212b33;
+    --grid-line: rgba(255,255,255,0.055);
+    --ink: #eae7de;
+    --ink-dim: #8fa0a8;
+    --ink-faint: #566067;
+    --accent: #f2a154;
+    --accent-ink: #1a1005;
+    --trace: #7fe0c9;
+    --trace-dim: rgba(127,224,201,0.22);
+    --warn: #e0684f;
+    --border: rgba(255,255,255,0.09);
+    --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 10px 30px rgba(0,0,0,0.35);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #eef1f0;
+      --panel: #ffffff;
+      --panel-2: #f3f6f5;
+      --grid-line: rgba(20,30,35,0.07);
+      --ink: #1a2229;
+      --ink-dim: #5b6b71;
+      --ink-faint: #93a0a5;
+      --accent: #c9791f;
+      --accent-ink: #fff8ef;
+      --trace: #178a72;
+      --trace-dim: rgba(23,138,114,0.16);
+      --warn: #c94a35;
+      --border: rgba(20,30,35,0.10);
+      --shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 10px 24px rgba(20,30,35,0.10);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10161b; --panel: #1a2229; --panel-2: #212b33; --grid-line: rgba(255,255,255,0.055);
+    --ink: #eae7de; --ink-dim: #8fa0a8; --ink-faint: #566067; --accent: #f2a154; --accent-ink: #1a1005;
+    --trace: #7fe0c9; --trace-dim: rgba(127,224,201,0.22); --warn: #e0684f; --border: rgba(255,255,255,0.09);
+    --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 10px 30px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #eef1f0; --panel: #ffffff; --panel-2: #f3f6f5; --grid-line: rgba(20,30,35,0.07);
+    --ink: #1a2229; --ink-dim: #5b6b71; --ink-faint: #93a0a5; --accent: #c9791f; --accent-ink: #fff8ef;
+    --trace: #178a72; --trace-dim: rgba(23,138,114,0.16); --warn: #c94a35; --border: rgba(20,30,35,0.10);
+    --shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 10px 24px rgba(20,30,35,0.10);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  #app {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Segoe UI', Tahoma, 'Noto Sans Arabic', Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 20px 16px 60px;
+  }
+  .mono {
+    font-family: ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  header.top {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 14px 20px; margin-bottom: 18px;
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+  }
+  header.top h1 {
+    margin: 0; font-family: inherit; font-size: 22px; font-weight: 700; color: var(--ink);
+  }
+  header.top .tag {
+    font-family: ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+    font-size: 11px; letter-spacing: 0.08em; color: var(--ink-dim); text-transform: uppercase;
+    border: 1px solid var(--border); padding: 4px 9px; border-radius: 999px; white-space: nowrap;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 880px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+  }
+  .card + .card { margin-top: 16px; }
+
+  .eyebrow {
+    font-family: ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+    font-size: 10.5px; letter-spacing: 0.10em; text-transform: uppercase; color: var(--ink-dim);
+    margin: 0 0 10px;
+  }
+
+  textarea#desc {
+    width: 100%; min-height: 108px; resize: vertical;
+    background: var(--panel-2); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 11px 12px; font-size: 14.5px; font-family: inherit; line-height: 1.6;
+    unicode-bidi: plaintext;
+  }
+  textarea#desc:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  textarea#desc::placeholder { color: var(--ink-faint); }
+
+  .hint {
+    font-size: 12px; color: var(--ink-faint); margin-top: 6px;
+  }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip {
+    font-size: 12.5px; color: var(--ink-dim); background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px;
+    cursor: pointer; transition: color .15s, border-color .15s;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--accent); }
+
+  .build-row { display: flex; gap: 8px; margin-top: 12px; }
+  button.primary {
+    flex: 1; background: var(--accent); color: var(--accent-ink); border: none;
+    border-radius: 8px; padding: 11px 16px; font-size: 14.5px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    button.primary { transition: filter .15s; }
+    .chip { transition: color .15s, border-color .15s; }
+  }
+  button.primary:hover { filter: brightness(1.08); }
+  button.primary:active { filter: brightness(0.96); }
+
+  .detected {
+    margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border);
+  }
+  .detected .type-name { font-size: 16px; font-weight: 700; color: var(--ink); }
+  .detected .type-name .dot { color: var(--trace); margin-inline-end: 6px; }
+  .warn-note {
+    margin: 8px 0 0; font-size: 12px; color: var(--warn); line-height: 1.5;
+  }
+  select.type-select {
+    width: 100%; margin-top: 10px; background: var(--panel-2); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px;
+    font-family: inherit; font-size: 13.5px; cursor: pointer;
+  }
+
+  .params { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+  .param-row label {
+    display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  .param-row label .val { color: var(--accent); }
+  input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 26px; background: transparent; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent) var(--fill,50%), var(--panel-2) var(--fill,50%));
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
+    background: var(--ink); border: 2px solid var(--accent);
+  }
+  input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--panel-2); }
+  input[type="range"]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--accent); }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 2px solid var(--accent);
+  }
+
+  .stage-shell { position: relative; }
+  canvas#stage, canvas#trace {
+    width: 100%; display: block; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 8px;
+  }
+  canvas#trace { margin-top: 10px; }
+  .trace-label {
+    display: flex; justify-content: space-between; margin-top: 6px;
+    font-size: 11px; color: var(--ink-faint); font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+
+  .transport {
+    display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--panel-2); color: var(--ink); border: 1px solid var(--border);
+    border-radius: 7px; padding: 8px 14px; font-size: 13.5px; cursor: pointer; font-family: inherit;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .btn { transition: border-color .15s, color .15s; }
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.on { border-color: var(--accent); color: var(--accent); }
+  .btn svg { width: 13px; height: 13px; fill: currentColor; }
+  .speed-group { display: flex; gap: 4px; margin-inline-start: auto; }
+  .speed-group .btn { padding: 8px 11px; }
+
+  .readouts {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px;
+  }
+  .readout {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 7px;
+    padding: 7px 12px; min-width: 90px;
+  }
+  .readout .rl { font-size: 10px; color: var(--ink-faint); letter-spacing: 0.06em; text-transform: uppercase;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; }
+  .readout .rv {
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace; font-size: 15px; color: var(--trace);
+    font-variant-numeric: tabular-nums; text-shadow: 0 0 10px var(--trace-dim);
+  }
+
+  footer.note {
+    margin-top: 18px; font-size: 12px; color: var(--ink-faint); text-align: center;
+  }
+</style>
+
+<div id="app" dir="rtl" lang="ar">
+  <div class="wrap">
+    <header class="top">
+      <h1>مصمم المحاكاة الفيزيائية</h1>
+      <span class="tag mono">Rule-Based Physics Engine</span>
+    </header>
+
+    <div class="grid">
+      <div class="col-left">
+        <div class="card">
+          <p class="eyebrow">وصف المحاكاة</p>
+          <textarea id="desc" dir="auto" placeholder="مثال: كرة كتلتها 2 كغ تسقط سقوطًا حرًا من ارتفاع 20 مترًا… أو: دائرة كهربائية بسيطة بجهد 9 فولت ومقاومتين 10 و20 أوم"></textarea>
+          <p class="hint">اكتب وصفًا حرًا بالعربية أو الإنجليزية، واذكر أرقامًا إن أمكن (الكتلة، السرعة، الزاوية، الطول…). يمكنك ضبط القيم يدويًا بعد البناء.</p>
+          <div class="chips" id="chips"></div>
+          <div class="build-row">
+            <button class="primary" id="buildBtn">بناء المحاكاة</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <p class="eyebrow">لوحة المعاملات</p>
+          <div class="detected">
+            <div class="type-name"><span class="dot">●</span><span id="typeName">—</span></div>
+            <p class="warn-note" id="warnNote" hidden>لم يتم العثور على كلمات مطابقة في الوصف — تم اختيار النوع أعلاه افتراضيًا. اختر النوع الصحيح يدويًا من القائمة:</p>
+            <select id="typeSelect" class="type-select"></select>
+          </div>
+          <div class="params" id="params"></div>
+        </div>
+      </div>
+
+      <div class="col-right">
+        <div class="card stage-shell">
+          <p class="eyebrow">شاشة المحاكاة</p>
+          <canvas id="stage"></canvas>
+          <canvas id="trace"></canvas>
+          <div class="trace-label">
+            <span id="traceLabel">الإشارة عبر الزمن</span>
+            <span class="mono" id="traceWindow">نافذة 6 ث</span>
+          </div>
+
+          <div class="transport">
+            <button class="btn on" id="playBtn">
+              <svg id="playIcon" viewBox="0 0 12 12"><path d="M2 1 L10 6 L2 11 Z"/></svg>
+              <span id="playLabel">إيقاف مؤقت</span>
+            </button>
+            <button class="btn" id="resetBtn">
+              <svg viewBox="0 0 14 14"><path d="M7 1a6 6 0 1 0 5.2 3H10.6A4.5 4.5 0 1 1 7 2.5V1Z"/><path d="M11.7 0.8 L13 4 L9.6 3.4 Z"/></svg>
+              <span>إعادة</span>
+            </button>
+            <div class="speed-group" id="speedGroup"></div>
+          </div>
+
+          <div class="readouts" id="readouts"></div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="note">يدعم المحرك حاليًا محاكاة الميكانيكا الكلاسيكية والدوائر الكهربائية البسيطة (RC وRL). إن لم يُطابَق وصفك مع أي نوع، اختر النوع يدويًا من القائمة أعلى لوحة المعاملات.</footer>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- theme sync for canvas ----------
+  var COLORS = {
+    dark:  { grid: "rgba(255,255,255,0.055)", ink: "#eae7de", inkDim: "#8fa0a8", accent: "#f2a154", trace: "#7fe0c9", traceDim: "rgba(127,224,201,0.22)", panel2: "#212b33", warn: "#e0684f" },
+    light: { grid: "rgba(20,30,35,0.07)",      ink: "#1a2229", inkDim: "#5b6b71", accent: "#c9791f", trace: "#178a72", traceDim: "rgba(23,138,114,0.16)", panel2: "#f3f6f5", warn: "#c94a35" }
+  };
+  function getTheme() {
+    var attr = document.documentElement.getAttribute("data-theme");
+    if (attr === "dark" || attr === "light") return attr;
+    return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+  }
+  function colors() { return COLORS[getTheme()]; }
+
+  // ---------- helpers ----------
+  function rad(d) { return d * Math.PI / 180; }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function normalizeDigits(s) {
+    var map = { "٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9",
+                "۰":"0","۱":"1","۲":"2","۳":"3","۴":"4","۵":"5","۶":"6","۷":"7","۸":"8","۹":"9" };
+    return s.replace(/[٠-٩۰-۹]/g, function (c) { return map[c] || c; });
+  }
+  function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+  function extractNum(text, keys) {
+    // gap kept short (<=3 chars) so a match can't leap across an unrelated
+    // word into a number that belongs to a different parameter
+    for (var i = 0; i < keys.length; i++) {
+      var k = escRe(keys[i]);
+      var m = text.match(new RegExp(k + "[^0-9\\-]{0,3}(-?\\d+(?:[.,]\\d+)?)", "i"));
+      if (m) return parseFloat(m[1].replace(",", "."));
+      m = text.match(new RegExp("(-?\\d+(?:[.,]\\d+)?)[^0-9]{0,3}" + k, "i"));
+      if (m) return parseFloat(m[1].replace(",", "."));
+    }
+    return null;
+  }
+  function fmt(v, step) {
+    if (!isFinite(v)) return "0";
+    return (step && step >= 1) ? String(Math.round(v)) : v.toFixed(step && step < 0.05 ? 3 : 2);
+  }
+
+  // ---------- keyword banks ----------
+  var K_MASS = ["كتلة الكرة الأولى","كتلة أولى","m1","كتلة","الكتلة","وزنها","وزنه","وزن","mass"];
+  var K_GRAV = ["الجاذبية","تسارع الجاذبية","جاذبية","gravity"];
+  var K_HEIGHT = ["ارتفاع البداية","من ارتفاع","الارتفاع","ارتفاع","height"];
+  var K_VEL = ["سرعة الكرة الأولى","سرعة أولى","v1","السرعة الابتدائية","سرعة ابتدائية","سرعتها","سرعته","السرعة","سرعة","velocity","speed"];
+  var K_ANGLE = ["زاوية الإطلاق","الزاوية الابتدائية","زاوية ابتدائية","الزاوية","زاوية","angle"];
+  var K_LENGTH = ["طول الخيط","طول المنحدر","الطول","طول","length"];
+  var K_SPRING_K = ["ثابت النابض","ثابت نابض","ثابت الزنبرك","ثابت زنبرك","صلابة النابض","صلابة","stiffness","spring constant"];
+  var K_DISP = ["الإزاحة الابتدائية","إزاحة ابتدائية","الإزاحة","إزاحة","displacement"];
+  var K_FRICTION = ["معامل الاحتكاك","معامل احتكاك","الاحتكاك","احتكاك","friction"];
+  var K_REST = ["معامل الارتداد","معامل ارتداد","الارتداد","ارتداد","المرونة","مرونة","restitution","elasticity"];
+  var K_DAMP = ["التخميد","تخميد","damping"];
+  var K_MASS2 = ["كتلة الكرة الثانية","كتلة ثانية","الكرة الثانية كتلتها","m2","الكتلة الثانية"];
+  var K_VEL2 = ["سرعة الكرة الثانية","سرعة ثانية","الكرة الثانية سرعتها","v2","السرعة الثانية"];
+  var K_CMASS = ["كتلة الجرم المركزي","كتلة الجرم","كتلة النجم","كتلة الشمس","central mass"];
+  var K_DIST = ["المسافة الابتدائية","مسافة ابتدائية","نصف القطر","البعد المداري","المسافة","مسافة","distance","radius"];
+  var K_TANVEL = ["السرعة المدارية","السرعة المماسية","سرعة مماسية","tangential velocity","orbital speed"];
+  var K_VOLTAGE = ["جهد البطارية","جهد بطارية","الجهد","جهد","فولت","voltage","volt"];
+  var K_RES1 = ["المقاومة الأولى","مقاومة أولى","r1","المقاومة","مقاومة","resistance","resistor"];
+  var K_RES2 = ["المقاومة الثانية","مقاومة ثانية","r2"];
+  var K_CAP = ["سعة المكثف","سعة مكثف","المكثف","مكثف","السعة","سعة","capacitance","capacitor"];
+  var K_IND = ["الحث الذاتي","حث ذاتي","الملف","ملف","المحث","محث","inductance","inductor","henry"];
+
+  // ---------- simulation type registry ----------
+  var TYPES = [
+    {
+      id: "freefall", label: "سقوط حر",
+      keywords: ["سقوط حر","سقوط عمودي","تسقط بحرية","free fall","freefall"],
+      params: [
+        { key: "h0", label: "ارتفاع البداية", unit: "م", min: 1, max: 50, step: 1, def: 20, keys: K_HEIGHT },
+        { key: "g", label: "الجاذبية", unit: "م/ث²", min: 1, max: 20, step: 0.1, def: 9.8, keys: K_GRAV },
+        { key: "drag", label: "مقاومة الهواء", unit: "", min: 0, max: 2, step: 0.05, def: 0, keys: ["مقاومة الهواء","مقاومة","drag"] }
+      ]
+    },
+    {
+      id: "projectile", label: "حركة قذيفة",
+      keywords: ["قذيفة","مقذوف","قذف","رمي بزاوية","projectile","trajectory"],
+      params: [
+        { key: "v0", label: "السرعة الابتدائية", unit: "م/ث", min: 1, max: 60, step: 1, def: 25, keys: K_VEL },
+        { key: "angle", label: "زاوية الإطلاق", unit: "°", min: 5, max: 85, step: 1, def: 45, keys: K_ANGLE },
+        { key: "g", label: "الجاذبية", unit: "م/ث²", min: 1, max: 20, step: 0.1, def: 9.8, keys: K_GRAV },
+        { key: "h0", label: "ارتفاع الإطلاق", unit: "م", min: 0, max: 20, step: 1, def: 0, keys: K_HEIGHT }
+      ]
+    },
+    {
+      id: "pendulum", label: "بندول بسيط",
+      keywords: ["بندول","ارجوحة بسيطة","pendulum"],
+      params: [
+        { key: "L", label: "طول الخيط", unit: "م", min: 0.2, max: 5, step: 0.1, def: 2, keys: K_LENGTH },
+        { key: "theta0", label: "الزاوية الابتدائية", unit: "°", min: 1, max: 90, step: 1, def: 30, keys: K_ANGLE },
+        { key: "g", label: "الجاذبية", unit: "م/ث²", min: 1, max: 20, step: 0.1, def: 9.8, keys: K_GRAV },
+        { key: "damping", label: "التخميد", unit: "", min: 0, max: 1, step: 0.01, def: 0.02, keys: K_DAMP }
+      ]
+    },
+    {
+      id: "spring", label: "نظام نابض–كتلة",
+      keywords: ["نابض","زنبرك","هزاز توافقي","spring","sho"],
+      params: [
+        { key: "mass", label: "الكتلة", unit: "كغ", min: 0.1, max: 10, step: 0.1, def: 1, keys: K_MASS },
+        { key: "k", label: "ثابت النابض", unit: "نيوتن/م", min: 1, max: 200, step: 1, def: 40, keys: K_SPRING_K },
+        { key: "x0", label: "الإزاحة الابتدائية", unit: "م", min: -3, max: 3, step: 0.1, def: 1.5, keys: K_DISP },
+        { key: "damping", label: "التخميد", unit: "", min: 0, max: 2, step: 0.02, def: 0.1, keys: K_DAMP }
+      ]
+    },
+    {
+      id: "incline", label: "انزلاق على منحدر",
+      keywords: ["منحدر","سطح مائل","مستوى مائل","incline","ramp"],
+      params: [
+        { key: "angle", label: "زاوية الميل", unit: "°", min: 5, max: 80, step: 1, def: 25, keys: K_ANGLE },
+        { key: "mu", label: "معامل الاحتكاك", unit: "", min: 0, max: 1, step: 0.01, def: 0.2, keys: K_FRICTION },
+        { key: "g", label: "الجاذبية", unit: "م/ث²", min: 1, max: 20, step: 0.1, def: 9.8, keys: K_GRAV },
+        { key: "length", label: "طول المنحدر", unit: "م", min: 1, max: 20, step: 1, def: 8, keys: K_LENGTH }
+      ]
+    },
+    {
+      id: "collision", label: "تصادم جسمين",
+      keywords: ["تصادم","اصطدام","كرتان","collision","collide"],
+      params: [
+        { key: "m1", label: "كتلة الكرة الأولى", unit: "كغ", min: 0.5, max: 10, step: 0.5, def: 2, keys: K_MASS },
+        { key: "v1", label: "سرعة الكرة الأولى", unit: "م/ث", min: -20, max: 20, step: 1, def: 5, keys: K_VEL },
+        { key: "m2", label: "كتلة الكرة الثانية", unit: "كغ", min: 0.5, max: 10, step: 0.5, def: 3, keys: K_MASS2 },
+        { key: "v2", label: "سرعة الكرة الثانية", unit: "م/ث", min: -20, max: 20, step: 1, def: -3, keys: K_VEL2 },
+        { key: "e", label: "معامل المرونة", unit: "", min: 0, max: 1, step: 0.05, def: 1, keys: K_REST }
+      ]
+    },
+    {
+      id: "bounce", label: "كرة مرتدة",
+      keywords: ["ارتداد","ترتد","كرة ترتد","bounce","bouncing"],
+      params: [
+        { key: "h0", label: "ارتفاع البداية", unit: "م", min: 1, max: 30, step: 1, def: 15, keys: K_HEIGHT },
+        { key: "g", label: "الجاذبية", unit: "م/ث²", min: 1, max: 20, step: 0.1, def: 9.8, keys: K_GRAV },
+        { key: "e", label: "معامل الارتداد", unit: "", min: 0.1, max: 1, step: 0.05, def: 0.75, keys: K_REST }
+      ]
+    },
+    {
+      id: "orbit", label: "مدار حول جرم مركزي",
+      keywords: ["مدار","يدور حول","كوكب","قمر صناعي","orbit","satellite","planet"],
+      params: [
+        { key: "r0", label: "المسافة الابتدائية", unit: "وحدة", min: 1, max: 8, step: 0.2, def: 3, keys: K_DIST },
+        { key: "v0", label: "السرعة المماسية", unit: "وحدة/ث", min: 0.2, max: 6, step: 0.1, def: 1.6, keys: K_TANVEL },
+        { key: "centralMass", label: "كتلة الجرم المركزي", unit: "", min: 50, max: 1000, step: 10, def: 400, keys: K_CMASS }
+      ]
+    },
+    {
+      id: "circuit_simple", label: "دائرة كهربائية بسيطة",
+      keywords: ["دائرة كهربائية","دائرة على التوالي","دائرة على التوازي","دائرة","circuit","مقاومات"],
+      params: [
+        { key: "V", label: "جهد البطارية", unit: "فولت", min: 1, max: 24, step: 0.5, def: 9, keys: K_VOLTAGE },
+        { key: "R1", label: "المقاومة الأولى", unit: "أوم", min: 1, max: 100, step: 1, def: 10, keys: K_RES1 },
+        { key: "R2", label: "المقاومة الثانية", unit: "أوم", min: 1, max: 100, step: 1, def: 20, keys: K_RES2 },
+        { key: "topology", label: "نوع التوصيل", unit: "", min: 0, max: 1, step: 1, def: 0,
+          labels: ["توالي (Series)", "توازي (Parallel)"], toggle: { onKeywords: ["توازي","بالتوازي","على التوازي","parallel"] } }
+      ]
+    },
+    {
+      id: "circuit_rc", label: "دائرة RC (شحن وتفريغ مكثف)",
+      keywords: ["دائرة rc","مكثف","تفريغ مكثف","شحن مكثف","capacitor","rc circuit"],
+      params: [
+        { key: "V", label: "جهد البطارية", unit: "فولت", min: 1, max: 24, step: 0.5, def: 9, keys: K_VOLTAGE },
+        { key: "R", label: "المقاومة", unit: "أوم", min: 10, max: 500, step: 5, def: 100, keys: K_RES1 },
+        { key: "C", label: "سعة المكثف", unit: "مل.فاراد", min: 0.1, max: 10, step: 0.1, def: 2, keys: K_CAP },
+        { key: "mode", label: "بداية الدورة", unit: "", min: 0, max: 1, step: 1, def: 0,
+          labels: ["يبدأ بالشحن", "يبدأ بالتفريغ"], toggle: { onKeywords: ["تفريغ","يفرغ","discharge"] } }
+      ]
+    },
+    {
+      id: "circuit_rl", label: "دائرة RL (ملف حثي)",
+      keywords: ["دائرة rl","ملف حثي","محث","الحث الذاتي","inductor","rl circuit"],
+      params: [
+        { key: "V", label: "جهد البطارية", unit: "فولت", min: 1, max: 24, step: 0.5, def: 9, keys: K_VOLTAGE },
+        { key: "R", label: "المقاومة", unit: "أوم", min: 5, max: 100, step: 1, def: 20, keys: K_RES1 },
+        { key: "L", label: "الحث الذاتي", unit: "هنري", min: 0.1, max: 5, step: 0.1, def: 1, keys: K_IND },
+        { key: "mode", label: "بداية الدورة", unit: "", min: 0, max: 1, step: 1, def: 0,
+          labels: ["يبدأ بالتزايد", "يبدأ بالتناقص"], toggle: { onKeywords: ["تناقص","يفرغ","تفريغ","discharge"] } }
+      ]
+    }
+  ];
+
+  function detectType(text) {
+    var lower = text.toLowerCase();
+    var best = null, bestScore = 0;
+    for (var i = 0; i < TYPES.length; i++) {
+      var t = TYPES[i], score = 0;
+      for (var j = 0; j < t.keywords.length; j++) {
+        if (lower.indexOf(t.keywords[j].toLowerCase()) !== -1) score += t.keywords[j].length;
+      }
+      if (score > bestScore) { bestScore = score; best = t; }
+    }
+    return { type: best || TYPES[0], score: bestScore };
+  }
+
+  function buildParams(type, text) {
+    var params = {};
+    type.params.forEach(function (p) {
+      if (p.toggle) {
+        var lower = text.toLowerCase();
+        var hit = p.toggle.onKeywords.some(function (k) { return lower.indexOf(k.toLowerCase()) !== -1; });
+        params[p.key] = hit ? 1 : p.def;
+        return;
+      }
+      var v = extractNum(text, p.keys);
+      params[p.key] = (v === null || isNaN(v)) ? p.def : v;
+      params[p.key] = clamp(params[p.key], p.min, p.max);
+    });
+    return params;
+  }
+
+  function parseDescription(raw) {
+    var text = normalizeDigits(raw || "");
+    var detected = detectType(text);
+    return { type: detected.type, score: detected.score, params: buildParams(detected.type, text) };
+  }
+
+  // ---------- physics engines ----------
+  var G_ORBIT = 0.02;
+
+  var ENGINES = {
+    freefall: {
+      init: function (p) { return { y: 0, v: 0, t: 0, landed: false }; },
+      step: function (s, p, dt) {
+        if (s.landed) { s.t += dt; return; }
+        var a = p.g - p.drag * s.v;
+        s.v += a * dt; s.y += s.v * dt; s.t += dt;
+        if (s.y >= p.h0) { s.y = p.h0; s.landed = true; }
+      },
+      getPos: function (s, p, W, H) {
+        var top = 44, bottom = H - 46;
+        return { x: W / 2, y: top + (s.y / Math.max(p.h0, 0.001)) * (bottom - top) };
+      },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        var top = 44, bottom = H - 46;
+        ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(30, bottom); ctx.lineTo(W - 30, bottom); ctx.stroke();
+        ctx.setLineDash([]);
+        drawTrail(ctx, trail, cl);
+        var pos = this.getPos(s, p, W, H);
+        drawBall(ctx, pos.x, pos.y, 11, cl.trace, cl);
+      },
+      traceValue: function (s) { return s.v; },
+      traceLabel: "السرعة (م/ث)",
+      info: function (s, p) {
+        return [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "السرعة", v: fmt(s.v) + " م/ث" },
+          { l: "الحالة", v: s.landed ? "ارتطمت بالأرض" : "تسقط" }
+        ];
+      }
+    },
+
+    projectile: {
+      init: function (p) {
+        var vx = p.v0 * Math.cos(rad(p.angle)), vy = p.v0 * Math.sin(rad(p.angle));
+        var estR = (p.v0 * p.v0 * Math.sin(2 * rad(p.angle))) / p.g + p.v0 * Math.sqrt(Math.max(2 * p.h0 / p.g, 0)) + 2;
+        var estH = p.h0 + (vy * vy) / (2 * p.g) + 1;
+        return { x: 0, y: p.h0, vx: vx, vy: vy, t: 0, landed: false, maxH: p.h0, range: 0, estR: Math.max(estR, 2), estH: Math.max(estH, 2) };
+      },
+      step: function (s, p, dt) {
+        if (s.landed) { s.t += dt; return; }
+        s.vy -= p.g * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.t += dt;
+        if (s.y > s.maxH) s.maxH = s.y;
+        if (s.y <= 0) { s.y = 0; s.range = s.x; s.landed = true; }
+      },
+      getPos: function (s, p, W, H) {
+        var scale = Math.min((W - 80) / s.estR, (H - 80) / s.estH);
+        return { x: 40 + s.x * scale, y: (H - 40) - s.y * scale };
+      },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(20, H - 40); ctx.lineTo(W - 20, H - 40); ctx.stroke();
+        ctx.setLineDash([]);
+        drawTrail(ctx, trail, cl);
+        var pos = this.getPos(s, p, W, H);
+        drawBall(ctx, pos.x, pos.y, 9, cl.trace, cl);
+      },
+      traceValue: function (s) { return s.y; },
+      traceLabel: "الارتفاع (م)",
+      info: function (s, p) {
+        var rows = [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "الارتفاع", v: fmt(s.y) + " م" },
+          { l: "أقصى ارتفاع", v: fmt(s.maxH) + " م" }
+        ];
+        if (s.landed) rows.push({ l: "المدى", v: fmt(s.range) + " م" });
+        return rows;
+      }
+    },
+
+    pendulum: {
+      init: function (p) { return { theta: rad(p.theta0), omega: 0, t: 0 }; },
+      step: function (s, p, dt) {
+        var alpha = -(p.g / p.L) * Math.sin(s.theta) - p.damping * s.omega;
+        s.omega += alpha * dt; s.theta += s.omega * dt; s.t += dt;
+      },
+      getPos: function (s, p, W, H) {
+        var pivot = { x: W / 2, y: 46 };
+        var len = Math.min(p.L * 65, H - 100);
+        return { x: pivot.x + len * Math.sin(s.theta), y: pivot.y + len * Math.cos(s.theta), pivot: pivot, len: len };
+      },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        var pos = this.getPos(s, p, W, H);
+        ctx.fillStyle = cl.accent;
+        ctx.beginPath(); ctx.arc(pos.pivot.x, pos.pivot.y, 4, 0, Math.PI * 2); ctx.fill();
+        drawTrail(ctx, trail, cl);
+        ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(pos.pivot.x, pos.pivot.y); ctx.lineTo(pos.x, pos.y); ctx.stroke();
+        drawBall(ctx, pos.x, pos.y, 12, cl.trace, cl);
+      },
+      traceValue: function (s) { return s.theta * 180 / Math.PI; },
+      traceLabel: "الزاوية (°)",
+      info: function (s, p) {
+        var T = 2 * Math.PI * Math.sqrt(p.L / p.g);
+        return [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "الزاوية", v: fmt(s.theta * 180 / Math.PI) + "°" },
+          { l: "الدور التقريبي", v: fmt(T) + " ث" }
+        ];
+      }
+    },
+
+    spring: {
+      init: function (p) { return { x: p.x0, v: 0, t: 0 }; },
+      step: function (s, p, dt) {
+        var a = -(p.k / p.mass) * s.x - p.damping * s.v;
+        s.v += a * dt; s.x += s.v * dt; s.t += dt;
+      },
+      getPos: function (s, p, W, H) {
+        var anchorY = 40, eqY = anchorY + 150, scale = 40;
+        return { x: W / 2, y: eqY + s.x * scale, anchorY: anchorY, eqY: eqY };
+      },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        var pos = this.getPos(s, p, W, H);
+        ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(20, pos.anchorY); ctx.lineTo(W - 20, pos.anchorY); ctx.stroke();
+        // spring zigzag
+        var coils = 10, x0 = pos.x, y0 = pos.anchorY, y1 = pos.y - 16, amp = 14;
+        ctx.strokeStyle = cl.trace; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, y0);
+        for (var i = 1; i <= coils; i++) {
+          var t = i / coils, y = y0 + (y1 - y0) * t;
+          ctx.lineTo(x0 + (i % 2 === 0 ? amp : -amp), y);
+        }
+        ctx.lineTo(x0, y1); ctx.stroke();
+        // equilibrium marker
+        ctx.strokeStyle = cl.inkDim; ctx.setLineDash([3, 4]); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(30, pos.eqY); ctx.lineTo(W - 30, pos.eqY); ctx.stroke(); ctx.setLineDash([]);
+        // mass block
+        ctx.fillStyle = cl.trace; roundRect(ctx, pos.x - 22, pos.y - 16, 44, 32, 6); ctx.fill();
+      },
+      traceValue: function (s) { return s.x; },
+      traceLabel: "الإزاحة (م)",
+      info: function (s, p) {
+        var T = 2 * Math.PI * Math.sqrt(p.mass / p.k);
+        return [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "الإزاحة", v: fmt(s.x) + " م" },
+          { l: "الدور التقريبي", v: fmt(T) + " ث" }
+        ];
+      }
+    },
+
+    incline: {
+      init: function (p) {
+        var moving = Math.sin(rad(p.angle)) > p.mu * Math.cos(rad(p.angle));
+        return { s: 0, v: 0, t: 0, moving: moving, done: false };
+      },
+      step: function (s, p, dt) {
+        s.t += dt;
+        if (!s.moving || s.done) return;
+        var a = p.g * (Math.sin(rad(p.angle)) - p.mu * Math.cos(rad(p.angle)));
+        s.v += a * dt; s.s += s.v * dt;
+        if (s.s >= p.length) { s.s = p.length; s.v = 0; s.done = true; }
+      },
+      getPos: function (s, p, W, H) {
+        var top = { x: 60, y: 60 };
+        var scale = Math.min((W - 120) / Math.max(p.length, 1), (H - 140) / Math.max(p.length * Math.sin(rad(p.angle)), 1));
+        var dir = { x: Math.cos(rad(p.angle)), y: Math.sin(rad(p.angle)) };
+        return { x: top.x + s.s * scale * dir.x, y: top.y + s.s * scale * dir.y, top: top, scale: scale, dir: dir };
+      },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        var pos = this.getPos(s, p, W, H);
+        var bottom = { x: pos.top.x + p.length * pos.scale * pos.dir.x, y: pos.top.y + p.length * pos.scale * pos.dir.y };
+        var groundY = bottom.y;
+        ctx.fillStyle = cl.panel2; ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(pos.top.x, pos.top.y); ctx.lineTo(bottom.x, bottom.y);
+        ctx.lineTo(pos.top.x, groundY); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.save();
+        ctx.translate(pos.x, pos.y);
+        ctx.rotate(rad(p.angle));
+        ctx.fillStyle = s.moving ? cl.trace : cl.warn;
+        roundRect(ctx, -14, -14, 28, 28, 5); ctx.fill();
+        ctx.restore();
+      },
+      traceValue: function (s) { return s.v; },
+      traceLabel: "السرعة (م/ث)",
+      info: function (s, p) {
+        return [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "المسافة", v: fmt(s.s) + " م" },
+          { l: "الحالة", v: !s.moving ? "لا ينزلق (الاحتكاك أكبر)" : (s.done ? "وصل للأسفل" : "ينزلق") }
+        ];
+      }
+    },
+
+    collision: {
+      init: function (p) {
+        var sep = 8;
+        return { x1: 0, x2: sep, v1: p.v1, v2: p.v2, t: 0, collided: false, mom0: p.m1 * p.v1 + p.m2 * p.v2, ke0: 0.5 * p.m1 * p.v1 * p.v1 + 0.5 * p.m2 * p.v2 * p.v2 };
+      },
+      step: function (s, p, dt) {
+        s.t += dt;
+        var r1 = 0.14 + Math.cbrt(p.m1) * 0.05, r2 = 0.14 + Math.cbrt(p.m2) * 0.05;
+        s.x1 += s.v1 * dt; s.x2 += s.v2 * dt;
+        if (!s.collided && (s.x2 - s.x1) <= (r1 + r2)) {
+          s.collided = true;
+          var m1 = p.m1, m2 = p.m2, u1 = s.v1, u2 = s.v2, e = p.e;
+          var v1n = (m1 * u1 + m2 * u2 + m2 * e * (u2 - u1)) / (m1 + m2);
+          var v2n = (m1 * u1 + m2 * u2 + m1 * e * (u1 - u2)) / (m1 + m2);
+          s.v1 = v1n; s.v2 = v2n;
+        }
+        s.x1 = clamp(s.x1, -2, 10); s.x2 = clamp(s.x2, -2, 10);
+      },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        var margin = 40, ppm = (W - margin * 2) / 10;
+        var trackY = H / 2;
+        ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(margin, trackY + 26); ctx.lineTo(W - margin, trackY + 26); ctx.stroke();
+        var r1 = 8 + Math.cbrt(p.m1) * 4, r2 = 8 + Math.cbrt(p.m2) * 4;
+        var x1 = margin + s.x1 * ppm, x2 = margin + s.x2 * ppm;
+        drawBall(ctx, x1, trackY, r1, cl.trace, cl);
+        drawBall(ctx, x2, trackY, r2, cl.accent, cl);
+      },
+      traceValue: function (s) { return s.v1; },
+      traceLabel: "سرعة الكرة الأولى (م/ث)",
+      info: function (s, p) {
+        var mom = p.m1 * s.v1 + p.m2 * s.v2;
+        var ke = 0.5 * p.m1 * s.v1 * s.v1 + 0.5 * p.m2 * s.v2 * s.v2;
+        return [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "الحالة", v: s.collided ? "بعد التصادم" : "قبل التصادم" },
+          { l: "الزخم الكلي", v: fmt(mom) },
+          { l: "الطاقة الحركية", v: fmt(ke) }
+        ];
+      }
+    },
+
+    bounce: {
+      init: function (p) { return { y: 0, v: 0, t: 0, bounces: 0, settled: false }; },
+      step: function (s, p, dt) {
+        s.t += dt;
+        if (s.settled) return;
+        s.v += p.g * dt; s.y += s.v * dt;
+        if (s.y >= p.h0) {
+          s.y = p.h0; s.v = -s.v * p.e; s.bounces++;
+          if (Math.abs(s.v) < 0.35) { s.v = 0; s.settled = true; }
+        }
+      },
+      getPos: function (s, p, W, H) {
+        var top = 44, bottom = H - 46;
+        return { x: W / 2, y: top + (s.y / Math.max(p.h0, 0.001)) * (bottom - top) };
+      },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        var bottom = H - 46;
+        ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(30, bottom); ctx.lineTo(W - 30, bottom); ctx.stroke();
+        ctx.setLineDash([]);
+        drawTrail(ctx, trail, cl);
+        var pos = this.getPos(s, p, W, H);
+        drawBall(ctx, pos.x, pos.y, 11, cl.trace, cl);
+      },
+      traceValue: function (s, p) { return p.h0 - s.y; },
+      traceLabel: "الارتفاع عن الأرض (م)",
+      info: function (s, p) {
+        return [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "عدد الارتدادات", v: String(s.bounces) },
+          { l: "الحالة", v: s.settled ? "استقرت الكرة" : "ترتد" }
+        ];
+      }
+    },
+
+    orbit: {
+      init: function (p) { return { x: p.r0, y: 0, vx: 0, vy: p.v0, t: 0 }; },
+      step: function (s, p, dt) {
+        var mu = G_ORBIT * p.centralMass;
+        var r = Math.max(Math.hypot(s.x, s.y), 0.05);
+        var a = -mu / (r * r);
+        var ax = a * s.x / r, ay = a * s.y / r;
+        s.vx += ax * dt; s.vy += ay * dt;
+        s.x += s.vx * dt; s.y += s.vy * dt;
+        s.t += dt;
+      },
+      getPos: function (s, p, W, H) {
+        var scale = 38;
+        return { x: W / 2 + s.x * scale, y: H / 2 + s.y * scale, cx: W / 2, cy: H / 2 };
+      },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        var pos = this.getPos(s, p, W, H);
+        var grad = ctx.createRadialGradient(pos.cx, pos.cy, 2, pos.cx, pos.cy, 22);
+        grad.addColorStop(0, cl.accent); grad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(pos.cx, pos.cy, 22, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = cl.accent; ctx.beginPath(); ctx.arc(pos.cx, pos.cy, 9, 0, Math.PI * 2); ctx.fill();
+        drawTrail(ctx, trail, cl);
+        drawBall(ctx, pos.x, pos.y, 8, cl.trace, cl);
+      },
+      traceValue: function (s) { return Math.hypot(s.x, s.y); },
+      traceLabel: "المسافة عن المركز",
+      info: function (s, p) {
+        var r = Math.hypot(s.x, s.y), v = Math.hypot(s.vx, s.vy);
+        return [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "المسافة", v: fmt(r) },
+          { l: "السرعة", v: fmt(v) }
+        ];
+      }
+    },
+
+    circuit_simple: {
+      init: function (p) { return { t: 0 }; },
+      step: function (s, p, dt) { s.t += dt; },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        var x1 = 110, y1 = 90, x2 = 650, y2 = 310;
+        var series = p.topology < 0.5;
+        var I, I1, I2;
+        if (series) { I = p.V / (p.R1 + p.R2); I1 = I; I2 = I; }
+        else {
+          var req = (p.R1 * p.R2) / (p.R1 + p.R2);
+          I = p.V / req; I1 = p.V / p.R1; I2 = p.V / p.R2;
+        }
+        var speed = clamp(Math.sqrt(Math.abs(I)) * 1.4, 0.15, 3);
+        var phase = (s.t * speed) % 1;
+
+        ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x2, y1); ctx.lineTo(x2, y2); ctx.stroke();
+
+        if (series) {
+          drawResistorH(ctx, x1, x2, y1, cl);
+          drawResistorH(ctx, x2, x1, y2, cl);
+        } else {
+          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y1); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x1, y2); ctx.lineTo(x2, y2); ctx.stroke();
+          drawResistorV(ctx, 340, y1, y2, cl);
+          drawResistorV(ctx, 460, y1, y2, cl);
+        }
+        drawBatteryV(ctx, x1, y1, y2, cl);
+
+        flowDotsH(ctx, x1, x2, y1, phase, cl);
+        flowDotsV(ctx, x2, y1, y2, phase, cl);
+        flowDotsH(ctx, x2, x1, y2, phase, cl);
+        flowDotsV(ctx, x1, y2, y1, phase, cl);
+        if (!series) {
+          var p1 = clamp(Math.sqrt(Math.abs(I1)) * 1.4, 0.15, 3);
+          var p2 = clamp(Math.sqrt(Math.abs(I2)) * 1.4, 0.15, 3);
+          flowDotsV(ctx, 340, y1, y2, (s.t * p1) % 1, cl);
+          flowDotsV(ctx, 460, y1, y2, (s.t * p2) % 1, cl);
+        }
+      },
+      traceValue: function (s, p) {
+        if (p.topology < 0.5) return p.V / (p.R1 + p.R2);
+        var req = (p.R1 * p.R2) / (p.R1 + p.R2);
+        return p.V / req;
+      },
+      traceLabel: "التيار الكلي (أمبير)",
+      info: function (s, p) {
+        var series = p.topology < 0.5;
+        if (series) {
+          var I = p.V / (p.R1 + p.R2);
+          return [
+            { l: "الزمن", v: fmt(s.t) + " ث" },
+            { l: "نوع التوصيل", v: "توالي" },
+            { l: "التيار", v: fmt(I) + " أمبير" },
+            { l: "جهد R1 / R2", v: fmt(I * p.R1) + " / " + fmt(I * p.R2) + " فولت" }
+          ];
+        }
+        var req = (p.R1 * p.R2) / (p.R1 + p.R2);
+        var I = p.V / req, I1 = p.V / p.R1, I2 = p.V / p.R2;
+        return [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "نوع التوصيل", v: "توازي" },
+          { l: "التيار الكلي", v: fmt(I) + " أمبير" },
+          { l: "تيار R1 / R2", v: fmt(I1) + " / " + fmt(I2) + " أمبير" }
+        ];
+      }
+    },
+
+    circuit_rc: {
+      init: function (p) { return { t: 0, phaseT: 0, phaseMode: p.mode }; },
+      step: function (s, p, dt) {
+        s.t += dt; s.phaseT += dt;
+        var tau = Math.max(p.R * p.C * 0.001, 0.001);
+        if (s.phaseT > tau * 6) { s.phaseMode = 1 - s.phaseMode; s.phaseT = 0; }
+      },
+      values: function (s, p) {
+        var tau = Math.max(p.R * p.C * 0.001, 0.001);
+        var Vc = s.phaseMode === 0 ? p.V * (1 - Math.exp(-s.phaseT / tau)) : p.V * Math.exp(-s.phaseT / tau);
+        var I = s.phaseMode === 0 ? (p.V - Vc) / p.R : Vc / p.R;
+        return { tau: tau, Vc: Vc, I: I };
+      },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        var x1 = 110, y1 = 90, x2 = 650, y2 = 310;
+        var v = this.values(s, p);
+        var speed = clamp(Math.sqrt(Math.abs(v.I)) * 1.4, 0.15, 3);
+        var phase = (s.t * speed) % 1;
+        var rev = s.phaseMode === 1;
+
+        ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x1, y2); ctx.lineTo(x2, y2); ctx.stroke();
+
+        drawResistorH(ctx, x1, x2, y1, cl);
+        drawCapacitorV(ctx, x2, y1, y2, cl);
+        drawBatteryV(ctx, x1, y1, y2, cl);
+
+        flowDotsH(ctx, rev ? x2 : x1, rev ? x1 : x2, y1, phase, cl);
+        flowDotsV(ctx, x2, rev ? y2 : y1, rev ? y1 : y2, phase, cl);
+        flowDotsH(ctx, rev ? x1 : x2, rev ? x2 : x1, y2, phase, cl);
+        flowDotsV(ctx, x1, rev ? y1 : y2, rev ? y2 : y1, phase, cl);
+      },
+      traceValue: function (s, p) { return this.values(s, p).Vc; },
+      traceLabel: "جهد المكثف (فولت)",
+      info: function (s, p) {
+        var v = this.values(s, p);
+        return [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "الثابت الزمني τ", v: fmt(v.tau, 0.01) + " ث" },
+          { l: "جهد المكثف", v: fmt(v.Vc) + " فولت" },
+          { l: "التيار", v: fmt(v.I, 0.01) + " أمبير" },
+          { l: "الحالة", v: s.phaseMode === 0 ? "يشحن" : "يفرغ" }
+        ];
+      }
+    },
+
+    circuit_rl: {
+      init: function (p) { return { t: 0, phaseT: 0, phaseMode: p.mode }; },
+      step: function (s, p, dt) {
+        s.t += dt; s.phaseT += dt;
+        var tau = Math.max(p.L / p.R, 0.001);
+        if (s.phaseT > tau * 6) { s.phaseMode = 1 - s.phaseMode; s.phaseT = 0; }
+      },
+      values: function (s, p) {
+        var tau = Math.max(p.L / p.R, 0.001);
+        var Imax = p.V / p.R;
+        var I = s.phaseMode === 0 ? Imax * (1 - Math.exp(-s.phaseT / tau)) : Imax * Math.exp(-s.phaseT / tau);
+        return { tau: tau, I: I, VR: I * p.R };
+      },
+      draw: function (ctx, W, H, s, p, trail, cl) {
+        var x1 = 110, y1 = 90, x2 = 650, y2 = 310;
+        var v = this.values(s, p);
+        var speed = clamp(Math.sqrt(Math.abs(v.I)) * 1.4, 0.15, 3);
+        var phase = (s.t * speed) % 1;
+        var rev = s.phaseMode === 1;
+
+        ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x1, y2); ctx.lineTo(x2, y2); ctx.stroke();
+
+        drawResistorH(ctx, x1, x2, y1, cl);
+        drawInductorV(ctx, x2, y1, y2, cl);
+        drawBatteryV(ctx, x1, y1, y2, cl);
+
+        flowDotsH(ctx, rev ? x2 : x1, rev ? x1 : x2, y1, phase, cl);
+        flowDotsV(ctx, x2, rev ? y2 : y1, rev ? y1 : y2, phase, cl);
+        flowDotsH(ctx, rev ? x1 : x2, rev ? x2 : x1, y2, phase, cl);
+        flowDotsV(ctx, x1, rev ? y1 : y2, rev ? y2 : y1, phase, cl);
+      },
+      traceValue: function (s, p) { return this.values(s, p).I; },
+      traceLabel: "التيار (أمبير)",
+      info: function (s, p) {
+        var v = this.values(s, p);
+        return [
+          { l: "الزمن", v: fmt(s.t) + " ث" },
+          { l: "الثابت الزمني τ", v: fmt(v.tau, 0.01) + " ث" },
+          { l: "التيار", v: fmt(v.I, 0.01) + " أمبير" },
+          { l: "جهد المقاومة", v: fmt(v.VR) + " فولت" },
+          { l: "الحالة", v: s.phaseMode === 0 ? "يتزايد التيار" : "يتناقص التيار" }
+        ];
+      }
+    }
+  };
+
+  function drawBall(ctx, x, y, r, fill, cl) {
+    ctx.fillStyle = fill;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = cl.ink; ctx.globalAlpha = 0.25; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  function drawTrail(ctx, trail, cl) {
+    if (!trail || !trail.length) return;
+    for (var i = 0; i < trail.length; i++) {
+      var t = trail[i], alpha = (i / trail.length) * 0.35;
+      ctx.fillStyle = cl.trace; ctx.globalAlpha = alpha;
+      ctx.beginPath(); ctx.arc(t.x, t.y, 4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function drawGrid(ctx, W, H, cl) {
+    ctx.strokeStyle = cl.grid; ctx.lineWidth = 1;
+    var step = 28;
+    ctx.beginPath();
+    for (var x = step; x < W; x += step) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); }
+    for (var y = step; y < H; y += step) { ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); }
+    ctx.stroke();
+  }
+
+  // ---------- circuit symbol helpers (axis-aligned wires only) ----------
+  function drawResistorH(ctx, x1, x2, y, cl) {
+    var segA = x1 + (x2 - x1) * 0.3, segB = x1 + (x2 - x1) * 0.7;
+    ctx.strokeStyle = cl.trace; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(segA, y);
+    var n = 6, amp = 10, w = (segB - segA) / n;
+    for (var i = 0; i < n; i++) { ctx.lineTo(segA + w * (i + 1), y + ((i % 2 === 0) ? -amp : amp)); }
+    ctx.lineTo(segB, y); ctx.lineTo(x2, y); ctx.stroke();
+  }
+  function drawResistorV(ctx, x, y1, y2, cl) {
+    var segA = y1 + (y2 - y1) * 0.3, segB = y1 + (y2 - y1) * 0.7;
+    ctx.strokeStyle = cl.trace; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, segA);
+    var n = 6, amp = 10, h = (segB - segA) / n;
+    for (var i = 0; i < n; i++) { ctx.lineTo(x + ((i % 2 === 0) ? -amp : amp), segA + h * (i + 1)); }
+    ctx.lineTo(x, segB); ctx.lineTo(x, y2); ctx.stroke();
+  }
+  function drawBatteryV(ctx, x, y1, y2, cl) {
+    var my = (y1 + y2) / 2, gap = 9;
+    ctx.strokeStyle = cl.ink; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, my - gap); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, my + gap); ctx.lineTo(x, y2); ctx.stroke();
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x - 11, my - gap); ctx.lineTo(x + 11, my - gap); ctx.stroke();
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x - 6, my + gap); ctx.lineTo(x + 6, my + gap); ctx.stroke();
+  }
+  function drawCapacitorV(ctx, x, y1, y2, cl) {
+    var my = (y1 + y2) / 2, gap = 7;
+    ctx.strokeStyle = cl.ink; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, my - gap); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, my + gap); ctx.lineTo(x, y2); ctx.stroke();
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x - 12, my - gap); ctx.lineTo(x + 12, my - gap); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 12, my + gap); ctx.lineTo(x + 12, my + gap); ctx.stroke();
+  }
+  function drawInductorV(ctx, x, y1, y2, cl) {
+    var segA = y1 + (y2 - y1) * 0.28, segB = y1 + (y2 - y1) * 0.72;
+    var bumps = 4, r = (segB - segA) / (bumps * 2);
+    ctx.strokeStyle = cl.trace; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, segA); ctx.stroke();
+    for (var i = 0; i < bumps; i++) {
+      var cy = segA + r + i * 2 * r;
+      ctx.beginPath(); ctx.arc(x, cy, r, -Math.PI / 2, Math.PI / 2, false); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(x, segB); ctx.lineTo(x, y2); ctx.stroke();
+  }
+  function flowDotsH(ctx, xa, xb, y, phase, cl) {
+    var n = Math.max(2, Math.round(Math.abs(xb - xa) / 34));
+    ctx.fillStyle = cl.accent;
+    for (var i = 0; i < n; i++) {
+      var f = ((i / n) + phase) % 1; if (f < 0) f += 1;
+      var x = xa + (xb - xa) * f;
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  function flowDotsV(ctx, x, ya, yb, phase, cl) {
+    var n = Math.max(2, Math.round(Math.abs(yb - ya) / 34));
+    ctx.fillStyle = cl.accent;
+    for (var i = 0; i < n; i++) {
+      var f = ((i / n) + phase) % 1; if (f < 0) f += 1;
+      var y = ya + (yb - ya) * f;
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // ---------- controller ----------
+  var STAGE_W = 760, STAGE_H = 400;
+  var TRACE_W = 760, TRACE_H = 120;
+  var TRACE_WINDOW = 6;
+
+  var stageCanvas = document.getElementById("stage");
+  var traceCanvas = document.getElementById("trace");
+  var stageCtx = stageCanvas.getContext("2d");
+  var traceCtx = traceCanvas.getContext("2d");
+
+  function setupCanvas(canvas, w, h) {
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    canvas.style.aspectRatio = w + " / " + h;
+    var ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+  }
+  stageCtx = setupCanvas(stageCanvas, STAGE_W, STAGE_H);
+  traceCtx = setupCanvas(traceCanvas, TRACE_W, TRACE_H);
+
+  var current = { typeId: null, params: {}, state: null, trail: [], samples: [], playing: true, speed: 1 };
+
+  var typeNameEl = document.getElementById("typeName");
+  var paramsEl = document.getElementById("params");
+  var readoutsEl = document.getElementById("readouts");
+  var traceLabelEl = document.getElementById("traceLabel");
+  var warnNoteEl = document.getElementById("warnNote");
+  var typeSelectEl = document.getElementById("typeSelect");
+
+  TYPES.forEach(function (t) {
+    var o = document.createElement("option");
+    o.value = t.id; o.textContent = t.label;
+    typeSelectEl.appendChild(o);
+  });
+
+  function typeConfig(id) { for (var i = 0; i < TYPES.length; i++) if (TYPES[i].id === id) return TYPES[i]; }
+
+  function resetEngine() {
+    var cfg = typeConfig(current.typeId);
+    current.state = ENGINES[current.typeId].init(current.params);
+    current.trail = [];
+    current.samples = [];
+  }
+
+  function applyBuild(parsed) {
+    current.typeId = parsed.type.id;
+    current.params = parsed.params;
+    typeNameEl.textContent = parsed.type.label;
+    typeSelectEl.value = parsed.type.id;
+    warnNoteEl.hidden = !(parsed.score === 0);
+    traceLabelEl.textContent = ENGINES[current.typeId].traceLabel;
+    renderParams(parsed.type);
+    resetEngine();
+  }
+
+  typeSelectEl.addEventListener("change", function () {
+    var cfg = typeConfig(typeSelectEl.value);
+    var text = normalizeDigits(current.lastText || descEl.value || "");
+    applyBuild({ type: cfg, params: buildParams(cfg, text), score: 1 });
+  });
+
+  function displayVal(pd, v) { return pd.labels ? pd.labels[clamp(Math.round(v), 0, pd.labels.length - 1)] : fmt(v, pd.step); }
+
+  function renderParams(cfg) {
+    paramsEl.innerHTML = "";
+    cfg.params.forEach(function (pd) {
+      var row = document.createElement("div");
+      row.className = "param-row";
+      var pct = ((current.params[pd.key] - pd.min) / (pd.max - pd.min)) * 100;
+      row.innerHTML =
+        '<label><span>' + pd.label + (pd.unit ? " (" + pd.unit + ")" : "") + '</span><span class="val mono">' +
+        displayVal(pd, current.params[pd.key]) + '</span></label>' +
+        '<input type="range" min="' + pd.min + '" max="' + pd.max + '" step="' + pd.step + '" value="' + current.params[pd.key] + '" style="--fill:' + pct + '%">';
+      var input = row.querySelector("input");
+      var valEl = row.querySelector(".val");
+      input.addEventListener("input", function () {
+        var v = parseFloat(input.value);
+        current.params[pd.key] = v;
+        valEl.textContent = displayVal(pd, v);
+        var p = ((v - pd.min) / (pd.max - pd.min)) * 100;
+        input.style.setProperty("--fill", p + "%");
+        resetEngine();
+      });
+      paramsEl.appendChild(row);
+    });
+  }
+
+  function renderReadouts(rows) {
+    readoutsEl.innerHTML = "";
+    rows.forEach(function (r) {
+      var d = document.createElement("div");
+      d.className = "readout";
+      d.innerHTML = '<div class="rl">' + r.l + '</div><div class="rv mono">' + r.v + '</div>';
+      readoutsEl.appendChild(d);
+    });
+  }
+
+  function drawTraceGraph() {
+    var cl = colors();
+    traceCtx.clearRect(0, 0, TRACE_W, TRACE_H);
+    drawGrid(traceCtx, TRACE_W, TRACE_H, cl);
+    var samples = current.samples;
+    if (samples.length < 2) return;
+    var tMax = samples[samples.length - 1].t, tMin = tMax - TRACE_WINDOW;
+    var visible = samples.filter(function (s) { return s.t >= tMin; });
+    if (visible.length < 2) visible = samples;
+    var vMin = Infinity, vMax = -Infinity;
+    visible.forEach(function (s) { if (s.v < vMin) vMin = s.v; if (s.v > vMax) vMax = s.v; });
+    if (vMin === vMax) { vMin -= 1; vMax += 1; }
+    var pad = (vMax - vMin) * 0.15;
+    vMin -= pad; vMax += pad;
+    var t0 = visible[0].t, t1 = visible[visible.length - 1].t;
+    if (t1 === t0) t1 = t0 + 0.001;
+    traceCtx.beginPath();
+    traceCtx.strokeStyle = cl.trace; traceCtx.lineWidth = 2;
+    visible.forEach(function (s, i) {
+      var x = ((s.t - t0) / (t1 - t0)) * TRACE_W;
+      var y = TRACE_H - ((s.v - vMin) / (vMax - vMin)) * TRACE_H;
+      if (i === 0) traceCtx.moveTo(x, y); else traceCtx.lineTo(x, y);
+    });
+    traceCtx.stroke();
+    // endpoint marker
+    var last = visible[visible.length - 1];
+    var lx = TRACE_W, ly = TRACE_H - ((last.v - vMin) / (vMax - vMin)) * TRACE_H;
+    traceCtx.fillStyle = cl.trace;
+    traceCtx.beginPath(); traceCtx.arc(lx - 2, ly, 3.5, 0, Math.PI * 2); traceCtx.fill();
+  }
+
+  var SUBSTEP = 1 / 120;
+  var lastFrame = null;
+
+  function frame(now) {
+    if (lastFrame === null) lastFrame = now;
+    var dtReal = Math.min((now - lastFrame) / 1000, 0.05);
+    lastFrame = now;
+
+    var cl = colors();
+    var engine = ENGINES[current.typeId];
+
+    if (current.playing && current.state) {
+      var dt = dtReal * current.speed;
+      var steps = clamp(Math.round(dt / SUBSTEP), 1, 12);
+      for (var i = 0; i < steps; i++) engine.step(current.state, current.params, SUBSTEP);
+
+      if (engine.getPos) {
+        var pos = engine.getPos(current.state, current.params, STAGE_W, STAGE_H);
+        current.trail.push({ x: pos.x, y: pos.y });
+        if (current.trail.length > 22) current.trail.shift();
+      }
+      current.samples.push({ t: current.state.t, v: engine.traceValue(current.state, current.params) });
+      if (current.samples.length > 900) current.samples.shift();
+    }
+
+    stageCtx.clearRect(0, 0, STAGE_W, STAGE_H);
+    drawGrid(stageCtx, STAGE_W, STAGE_H, cl);
+    if (current.state) {
+      engine.draw(stageCtx, STAGE_W, STAGE_H, current.state, current.params, current.trail, cl);
+      renderReadouts(engine.info(current.state, current.params));
+    }
+    drawTraceGraph();
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- theme change watchers ----------
+  if (window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {});
+  }
+  new MutationObserver(function () {}).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // ---------- UI wiring ----------
+  var playBtn = document.getElementById("playBtn");
+  var playLabel = document.getElementById("playLabel");
+  document.getElementById("resetBtn").addEventListener("click", resetEngine);
+  playBtn.addEventListener("click", function () {
+    current.playing = !current.playing;
+    playLabel.textContent = current.playing ? "إيقاف مؤقت" : "تشغيل";
+    playBtn.classList.toggle("on", current.playing);
+  });
+
+  var speeds = [0.5, 1, 2];
+  var speedGroup = document.getElementById("speedGroup");
+  speeds.forEach(function (sp) {
+    var b = document.createElement("button");
+    b.className = "btn" + (sp === 1 ? " on" : "");
+    b.textContent = sp + "×";
+    b.addEventListener("click", function () {
+      current.speed = sp;
+      Array.prototype.forEach.call(speedGroup.children, function (c) { c.classList.remove("on"); });
+      b.classList.add("on");
+    });
+    speedGroup.appendChild(b);
+  });
+
+  var descEl = document.getElementById("desc");
+  var buildBtn = document.getElementById("buildBtn");
+  function build() {
+    var text = descEl.value.trim();
+    if (!text) return;
+    current.lastText = text;
+    applyBuild(parseDescription(text));
+  }
+  buildBtn.addEventListener("click", build);
+  descEl.addEventListener("keydown", function (e) {
+    if (e.ctrlKey && e.key === "Enter") build();
+  });
+
+  var EXAMPLES = [
+    "كرة كتلتها 2 كغ تسقط سقوطًا حرًا من ارتفاع 20 مترًا",
+    "بندول طوله 2 متر بزاوية ابتدائية 30 درجة",
+    "مقذوف بسرعة ابتدائية 28 م/ث وزاوية 45 درجة",
+    "نابض بكتلة 1 كغ وثابت نابض 40",
+    "كرتان تتصادمان: الأولى كتلتها 2 كغ وسرعتها 6، والثانية كتلتها 3 كغ وسرعتها -3",
+    "كرة ترتد من ارتفاع 15 مترًا بمعامل ارتداد 0.8",
+    "صندوق ينزلق على منحدر بزاوية 25 درجة ومعامل احتكاك 0.15",
+    "قمر صناعي يدور حول كوكب بمسافة ابتدائية 3 وسرعة مماسية 1.6",
+    "دائرة كهربائية بسيطة على التوالي بجهد بطارية 9 فولت ومقاومتين 10 و20 أوم",
+    "دائرة RC بجهد 9 فولت ومقاومة 100 أوم وسعة مكثف 2 مل.فاراد",
+    "دائرة RL بجهد 9 فولت ومقاومة 20 أوم وحث ذاتي 1 هنري"
+  ];
+  var chipsEl = document.getElementById("chips");
+  EXAMPLES.forEach(function (ex) {
+    var c = document.createElement("span");
+    c.className = "chip"; c.textContent = ex.length > 34 ? ex.slice(0, 34) + "…" : ex;
+    c.title = ex;
+    c.addEventListener("click", function () { descEl.value = ex; build(); });
+    chipsEl.appendChild(c);
+  });
+
+  // initial simulation
+  descEl.value = EXAMPLES[0];
+  build();
+})();
+</script>
