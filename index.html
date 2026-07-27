@@ -191,6 +191,14 @@
   .drag-hint::before {
     content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none;
   }
+  .game-row {
+    display: flex; align-items: center; gap: 12px; margin-top: 14px;
+  }
+  .game-msg {
+    margin: 0; font-size: 13.5px; font-weight: 700; color: var(--ink-dim); min-height: 1.4em;
+  }
+  .game-msg.hit { color: var(--trace); }
+  .game-msg.miss { color: var(--warn); }
   .trace-label {
     display: flex; justify-content: space-between; margin-top: 6px;
     font-size: 11px; color: var(--ink-faint); font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
@@ -283,7 +291,13 @@
               <svg viewBox="0 0 14 14"><path d="M7 1a6 6 0 1 0 5.2 3H10.6A4.5 4.5 0 1 1 7 2.5V1Z"/><path d="M11.7 0.8 L13 4 L9.6 3.4 Z"/></svg>
               <span>إعادة</span>
             </button>
+            <button class="btn" id="gameToggleBtn" hidden>وضع التحدي: أصب الهدف</button>
             <div class="speed-group" id="speedGroup"></div>
+          </div>
+
+          <div class="game-row" id="gameScoreRow" hidden>
+            <div class="readout"><div class="rl">النتيجة</div><div class="rv mono" id="gameScoreText">0 / 0</div></div>
+            <p class="game-msg" id="gameMsg"></p>
           </div>
 
           <div class="readouts" id="readouts"></div>
@@ -560,6 +574,18 @@
           s.y = 0; s.v = 0; s.landed = false; s.t = 0;
         },
         release: function () {}
+      },
+      game: {
+        mode: "instant",
+        spawnTarget: function () { return { h0: 3 + Math.random() * 45 }; },
+        check: function (p, s, target) { return Math.abs(p.h0 - target.h0) <= 2.5; },
+        drawTarget: function (ctx, W, H, target, cl, result, s, p) {
+          var b = ENGINES.freefall.bounds({ h0: target.h0 }, H);
+          var col = result === "hit" ? cl.trace : (result === "miss" ? cl.warn : cl.accent);
+          ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+          ctx.beginPath(); ctx.moveTo(W / 2 - 90, b.topY); ctx.lineTo(W / 2 + 90, b.topY); ctx.stroke();
+          ctx.setLineDash([]);
+        }
       }
     },
 
@@ -613,6 +639,36 @@
         },
         release: function (s) { s.aim = null; }
       },
+      game: {
+        mode: "live",
+        timeout: 8,
+        spawnTarget: function () {
+          return { x: 6 + Math.random() * 32, w: 2.5, h: 2 + Math.random() * 4 };
+        },
+        fitTarget: function (s, target) {
+          s.estR = Math.max(s.estR, target.x + target.w / 2 + 3);
+          s.estH = Math.max(s.estH, target.h + 2, s.maxH + 0.5);
+        },
+        check: function (p, s, target) {
+          return s.x >= target.x - target.w / 2 && s.x <= target.x + target.w / 2 &&
+                 s.y <= target.h && s.y >= -0.05;
+        },
+        settled: function (s) { return s.landed; },
+        drawTarget: function (ctx, W, H, target, cl, result, s) {
+          var scale = Math.min((W - 80) / s.estR, (H - 80) / s.estH);
+          var groundY = H - 40, bw = target.w * scale, bh = target.h * scale;
+          var bx = 40 + target.x * scale - bw / 2, by = groundY - bh;
+          ctx.fillStyle = result === "hit" ? cl.trace : (result === "miss" ? cl.warn : cl.accent);
+          ctx.fillRect(bx, by, bw, bh);
+          ctx.strokeStyle = cl.ink; ctx.globalAlpha = 0.3; ctx.lineWidth = 1;
+          ctx.strokeRect(bx, by, bw, bh); ctx.globalAlpha = 1;
+          ctx.fillStyle = cl.panel2;
+          var cols = Math.max(1, Math.floor(bw / 12)), rows = Math.max(1, Math.floor(bh / 14));
+          for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) {
+            ctx.fillRect(bx + 4 + c * 12, by + 5 + r * 14, 5, 6);
+          }
+        }
+      },
       info: function (s, p) {
         var rows = [
           { l: "الزمن", v: fmt(s.t) + " ث" },
@@ -657,6 +713,30 @@
           s.theta = theta; s.omega = 0;
         },
         release: function (s, p) { p.theta0 = clamp(Math.round(Math.abs(s.theta) * 180 / Math.PI), 1, 90); }
+      },
+      game: {
+        mode: "live",
+        timeout: 7,
+        spawnTarget: function () {
+          return { angleDeg: 30 + Math.random() * 55, side: Math.random() < 0.5 ? -1 : 1 };
+        },
+        check: function (p, s, target) {
+          var thetaT = rad(target.angleDeg) - rad(2);
+          return target.side > 0 ? s.theta >= thetaT : s.theta <= -thetaT;
+        },
+        drawTarget: function (ctx, W, H, target, cl, result, s, p) {
+          var pivot = { x: W / 2, y: 46 };
+          var len = Math.min(p.L * 65, H - 100);
+          var theta = target.side * rad(target.angleDeg);
+          var bx = pivot.x + len * Math.sin(theta), by = pivot.y + len * Math.cos(theta);
+          ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+          ctx.beginPath(); ctx.moveTo(pivot.x, pivot.y); ctx.lineTo(bx, by); ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = result === "hit" ? cl.trace : (result === "miss" ? cl.warn : cl.accent);
+          ctx.beginPath(); ctx.arc(bx, by, 9, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = cl.ink; ctx.globalAlpha = 0.3; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(bx, by, 9, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+        }
       },
       info: function (s, p) {
         var T = 2 * Math.PI * Math.sqrt(p.L / p.g);
@@ -707,6 +787,27 @@
           s.x = clamp((my - eqY) / scale, -3, 3); s.v = 0;
         },
         release: function (s, p) { p.x0 = Math.round(s.x * 10) / 10; }
+      },
+      game: {
+        mode: "live",
+        timeout: 7,
+        spawnTarget: function () {
+          return { value: (0.8 + Math.random() * 1.8) * (Math.random() < 0.5 ? -1 : 1) };
+        },
+        check: function (p, s, target) {
+          var tol = 0.08;
+          return target.value > 0 ? s.x >= target.value - tol : s.x <= target.value + tol;
+        },
+        drawTarget: function (ctx, W, H, target, cl, result) {
+          var eqY = 40 + 150, scale = 40;
+          var ty = eqY + target.value * scale;
+          var col = result === "hit" ? cl.trace : (result === "miss" ? cl.warn : cl.accent);
+          ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+          ctx.beginPath(); ctx.moveTo(W / 2 + 40, ty); ctx.lineTo(W - 30, ty); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = col;
+          ctx.beginPath(); ctx.moveTo(W - 30, ty - 6); ctx.lineTo(W - 14, ty); ctx.lineTo(W - 30, ty + 6); ctx.closePath(); ctx.fill();
+        }
       },
       info: function (s, p) {
         var T = 2 * Math.PI * Math.sqrt(p.mass / p.k);
@@ -846,6 +947,18 @@
           s.y = 0; s.v = 0; s.bounces = 0; s.settled = false;
         },
         release: function () {}
+      },
+      game: {
+        mode: "instant",
+        spawnTarget: function () { return { h0: 2 + Math.random() * 27 }; },
+        check: function (p, s, target) { return Math.abs(p.h0 - target.h0) <= 1.5; },
+        drawTarget: function (ctx, W, H, target, cl, result, s, p) {
+          var b = ENGINES.bounce.bounds({ h0: target.h0 }, H);
+          var col = result === "hit" ? cl.trace : (result === "miss" ? cl.warn : cl.accent);
+          ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+          ctx.beginPath(); ctx.moveTo(W / 2 - 90, b.topY); ctx.lineTo(W / 2 + 90, b.topY); ctx.stroke();
+          ctx.setLineDash([]);
+        }
       },
       info: function (s, p) {
         return [
@@ -1173,7 +1286,15 @@
   stageCtx = setupCanvas(stageCanvas, STAGE_W, STAGE_H);
   traceCtx = setupCanvas(traceCanvas, TRACE_W, TRACE_H);
 
-  var current = { typeId: null, params: {}, state: null, trail: [], samples: [], playing: true, speed: 1 };
+  var current = {
+    typeId: null, params: {}, state: null, trail: [], samples: [], playing: true, speed: 1,
+    game: { active: false, target: null, hits: 0, attempts: 0, pending: false, roundClock: 0, result: null, resultUntil: 0 }
+  };
+
+  var gameToggleBtn = document.getElementById("gameToggleBtn");
+  var gameScoreRow = document.getElementById("gameScoreRow");
+  var gameScoreText = document.getElementById("gameScoreText");
+  var gameMsgEl = document.getElementById("gameMsg");
 
   var typeNameEl = document.getElementById("typeName");
   var paramsEl = document.getElementById("params");
@@ -1215,7 +1336,57 @@
       dragHintEl.hidden = true;
     }
     stageCanvas.style.cursor = engine.drag ? "grab" : "default";
+
+    current.game.active = false; current.game.target = null; current.game.pending = false;
+    current.game.result = null; current.game.hits = 0; current.game.attempts = 0;
+    gameToggleBtn.hidden = !engine.game;
+    gameToggleBtn.classList.remove("on");
+    gameToggleBtn.textContent = "وضع التحدي: أصب الهدف";
+    gameScoreRow.hidden = true;
+    gameMsgEl.textContent = ""; gameMsgEl.className = "game-msg";
   }
+
+  // ---------- target challenge (game mode) ----------
+  function spawnTarget() {
+    var engine = ENGINES[current.typeId];
+    if (!engine.game) return;
+    current.game.target = engine.game.spawnTarget(current.params, STAGE_W, STAGE_H);
+    current.game.pending = false; current.game.roundClock = 0;
+    applyGameFit();
+  }
+  function applyGameFit() {
+    var engine = ENGINES[current.typeId];
+    if (current.game.active && engine.game && engine.game.fitTarget && current.game.target) {
+      engine.game.fitTarget(current.state, current.game.target);
+    }
+  }
+  function updateGameUI() {
+    gameScoreText.textContent = current.game.hits + " / " + current.game.attempts;
+  }
+  function registerResult(hit) {
+    current.game.hits += hit ? 1 : 0;
+    current.game.result = hit ? "hit" : "miss";
+    current.game.resultUntil = performance.now() + 1300;
+    gameMsgEl.textContent = hit ? "إصابة! هدف جديد..." : "لم تصب — حاول مجددًا";
+    gameMsgEl.className = "game-msg " + (hit ? "hit" : "miss");
+    updateGameUI();
+    if (hit) spawnTarget();
+  }
+  gameToggleBtn.addEventListener("click", function () {
+    var engine = ENGINES[current.typeId];
+    if (!engine.game) return;
+    current.game.active = !current.game.active;
+    gameToggleBtn.classList.toggle("on", current.game.active);
+    gameScoreRow.hidden = !current.game.active;
+    if (current.game.active) {
+      current.game.hits = 0; current.game.attempts = 0;
+      spawnTarget();
+      updateGameUI();
+    } else {
+      current.game.target = null; current.game.pending = false;
+      gameMsgEl.textContent = ""; gameMsgEl.className = "game-msg";
+    }
+  });
 
   typeSelectEl.addEventListener("change", function () {
     var cfg = typeConfig(typeSelectEl.value);
@@ -1313,6 +1484,21 @@
       }
       current.samples.push({ t: current.state.t, v: engine.traceValue(current.state, current.params) });
       if (current.samples.length > 900) current.samples.shift();
+
+      if (current.game.active && current.game.pending && engine.game) {
+        if (engine.game.check(current.params, current.state, current.game.target, STAGE_W, STAGE_H)) {
+          registerResult(true);
+        } else if (engine.game.settled && engine.game.settled(current.state)) {
+          registerResult(false);
+        } else {
+          current.game.roundClock += dt;
+          if (current.game.roundClock > (engine.game.timeout || 6)) registerResult(false);
+        }
+      }
+    }
+
+    if (current.game.result && now > current.game.resultUntil) {
+      current.game.result = null; gameMsgEl.textContent = ""; gameMsgEl.className = "game-msg";
     }
 
     stageCtx.clearRect(0, 0, STAGE_W, STAGE_H);
@@ -1320,6 +1506,9 @@
     if (current.state) {
       engine.draw(stageCtx, STAGE_W, STAGE_H, current.state, current.params, current.trail, cl);
       renderReadouts(engine.info(current.state, current.params));
+      if (current.game.active && current.game.target && engine.game && engine.game.drawTarget) {
+        engine.game.drawTarget(stageCtx, STAGE_W, STAGE_H, current.game.target, cl, current.game.result, current.state, current.params);
+      }
     }
     drawTraceGraph();
 
@@ -1365,7 +1554,9 @@
     stageCanvas.setPointerCapture(e.pointerId);
     stageCanvas.style.cursor = "grabbing";
     setPlaying(false);
+    if (current.game.active) { current.game.result = null; gameMsgEl.textContent = ""; gameMsgEl.className = "game-msg"; }
     engine.drag.update(current.state, current.params, STAGE_W, STAGE_H, pt.x, pt.y);
+    applyGameFit();
   });
 
   stageCanvas.addEventListener("pointermove", function (e) {
@@ -1375,6 +1566,7 @@
     var pt = stagePoint(e);
     pt.x = clamp(pt.x, 0, STAGE_W); pt.y = clamp(pt.y, 0, STAGE_H);
     engine.drag.update(current.state, current.params, STAGE_W, STAGE_H, pt.x, pt.y);
+    applyGameFit();
   });
 
   function endDrag() {
@@ -1386,6 +1578,15 @@
     renderParams(typeConfig(current.typeId));
     stageCanvas.style.cursor = "grab";
     setPlaying(true);
+    if (current.game.active && engine.game) {
+      current.game.attempts++;
+      if (engine.game.mode === "instant") {
+        registerResult(engine.game.check(current.params, current.state, current.game.target, STAGE_W, STAGE_H));
+      } else {
+        current.game.pending = true; current.game.roundClock = 0;
+        updateGameUI();
+      }
+    }
   }
   stageCanvas.addEventListener("pointerup", endDrag);
   stageCanvas.addEventListener("pointercancel", endDrag);
