@@ -182,7 +182,15 @@
     width: 100%; display: block; background: var(--panel-2);
     border: 1px solid var(--border); border-radius: 8px;
   }
+  canvas#stage { touch-action: none; }
   canvas#trace { margin-top: 10px; }
+  .drag-hint {
+    display: flex; align-items: center; gap: 7px; margin-top: 10px;
+    font-size: 12.5px; color: var(--accent);
+  }
+  .drag-hint::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none;
+  }
   .trace-label {
     display: flex; justify-content: space-between; margin-top: 6px;
     font-size: 11px; color: var(--ink-faint); font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
@@ -264,6 +272,7 @@
             <span id="traceLabel">الإشارة عبر الزمن</span>
             <span class="mono" id="traceWindow">نافذة 6 ث</span>
           </div>
+          <p class="drag-hint" id="dragHint" hidden></p>
 
           <div class="transport">
             <button class="btn on" id="playBtn">
@@ -506,6 +515,7 @@
 
   var ENGINES = {
     freefall: {
+      scale: 6, // px per meter — keep in sync between getPos/draw/drag
       init: function (p) { return { y: 0, v: 0, t: 0, landed: false }; },
       step: function (s, p, dt) {
         if (s.landed) { s.t += dt; return; }
@@ -513,14 +523,19 @@
         s.v += a * dt; s.y += s.v * dt; s.t += dt;
         if (s.y >= p.h0) { s.y = p.h0; s.landed = true; }
       },
+      bounds: function (p, H) {
+        var groundY = H - 46, topY = clamp(groundY - p.h0 * this.scale, 40, groundY - 10);
+        return { groundY: groundY, topY: topY };
+      },
       getPos: function (s, p, W, H) {
-        var top = 44, bottom = H - 46;
-        return { x: W / 2, y: top + (s.y / Math.max(p.h0, 0.001)) * (bottom - top) };
+        var b = this.bounds(p, H);
+        return { x: W / 2, y: b.topY + (s.y / Math.max(p.h0, 0.001)) * (b.groundY - b.topY) };
       },
       draw: function (ctx, W, H, s, p, trail, cl) {
-        var top = 44, bottom = H - 46;
+        var b = this.bounds(p, H);
         ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
-        ctx.beginPath(); ctx.moveTo(30, bottom); ctx.lineTo(W - 30, bottom); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(30, b.groundY); ctx.lineTo(W - 30, b.groundY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(W / 2 - 40, b.topY); ctx.lineTo(W / 2 + 40, b.topY); ctx.stroke();
         ctx.setLineDash([]);
         drawTrail(ctx, trail, cl);
         var pos = this.getPos(s, p, W, H);
@@ -534,6 +549,17 @@
           { l: "السرعة", v: fmt(s.v) + " م/ث" },
           { l: "الحالة", v: s.landed ? "ارتطمت بالأرض" : "تسقط" }
         ];
+      },
+      dragHint: "اسحب الكرة لأعلى أو أسفل لضبط ارتفاع السقوط، ثم أفلتها",
+      drag: {
+        hitRadius: 20,
+        point: function (s, p, W, H) { return ENGINES.freefall.getPos(s, p, W, H); },
+        update: function (s, p, W, H, mx, my) {
+          var groundY = H - 46;
+          p.h0 = clamp((groundY - my) / ENGINES.freefall.scale, 1, 50);
+          s.y = 0; s.v = 0; s.landed = false; s.t = 0;
+        },
+        release: function () {}
       }
     },
 
@@ -558,12 +584,35 @@
         ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
         ctx.beginPath(); ctx.moveTo(20, H - 40); ctx.lineTo(W - 20, H - 40); ctx.stroke();
         ctx.setLineDash([]);
+        if (s.aim) {
+          ctx.strokeStyle = cl.accent; ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(40, H - 40); ctx.lineTo(s.aim.x, s.aim.y); ctx.stroke();
+          ctx.setLineDash([]);
+          drawBall(ctx, s.aim.x, s.aim.y, 9, cl.trace, cl);
+          return;
+        }
         drawTrail(ctx, trail, cl);
         var pos = this.getPos(s, p, W, H);
         drawBall(ctx, pos.x, pos.y, 9, cl.trace, cl);
       },
       traceValue: function (s) { return s.y; },
       traceLabel: "الارتفاع (م)",
+      dragHint: "اسحب الكرة لتحديد اتجاه وسرعة الإطلاق، ثم أفلتها",
+      drag: {
+        hitRadius: 22,
+        point: function (s, p, W, H) { return s.aim || ENGINES.projectile.getPos(s, p, W, H); },
+        update: function (s, p, W, H, mx, my) {
+          var ax = 40, ay = H - 40;
+          var dx = mx - ax, dy = my - ay;
+          var distPx = Math.max(Math.hypot(dx, dy), 1);
+          p.angle = clamp(Math.atan2(-dy, dx) * 180 / Math.PI, 5, 85);
+          p.v0 = clamp(distPx / 5, 1, 60);
+          var ns = ENGINES.projectile.init(p);
+          Object.keys(ns).forEach(function (k) { s[k] = ns[k]; });
+          s.aim = { x: mx, y: my };
+        },
+        release: function (s) { s.aim = null; }
+      },
       info: function (s, p) {
         var rows = [
           { l: "الزمن", v: fmt(s.t) + " ث" },
@@ -597,6 +646,18 @@
       },
       traceValue: function (s) { return s.theta * 180 / Math.PI; },
       traceLabel: "الزاوية (°)",
+      dragHint: "اسحب الكرة لتحديد زاوية الانطلاق، ثم أفلتها",
+      drag: {
+        hitRadius: 22,
+        point: function (s, p, W, H) { return ENGINES.pendulum.getPos(s, p, W, H); },
+        update: function (s, p, W, H, mx, my) {
+          var pivot = { x: W / 2, y: 46 };
+          var theta = Math.atan2(mx - pivot.x, my - pivot.y);
+          theta = clamp(theta, -rad(90), rad(90));
+          s.theta = theta; s.omega = 0;
+        },
+        release: function (s, p) { p.theta0 = clamp(Math.round(Math.abs(s.theta) * 180 / Math.PI), 1, 90); }
+      },
       info: function (s, p) {
         var T = 2 * Math.PI * Math.sqrt(p.L / p.g);
         return [
@@ -637,6 +698,16 @@
       },
       traceValue: function (s) { return s.x; },
       traceLabel: "الإزاحة (م)",
+      dragHint: "اسحب الكتلة لشد النابض أو ضغطه، ثم أفلتها",
+      drag: {
+        hitRadius: 26,
+        point: function (s, p, W, H) { return ENGINES.spring.getPos(s, p, W, H); },
+        update: function (s, p, W, H, mx, my) {
+          var eqY = 40 + 150, scale = 40;
+          s.x = clamp((my - eqY) / scale, -3, 3); s.v = 0;
+        },
+        release: function (s, p) { p.x0 = Math.round(s.x * 10) / 10; }
+      },
       info: function (s, p) {
         var T = 2 * Math.PI * Math.sqrt(p.mass / p.k);
         return [
@@ -734,6 +805,7 @@
     },
 
     bounce: {
+      scale: 10, // px per meter — keep in sync between getPos/draw/drag
       init: function (p) { return { y: 0, v: 0, t: 0, bounces: 0, settled: false }; },
       step: function (s, p, dt) {
         s.t += dt;
@@ -744,14 +816,19 @@
           if (Math.abs(s.v) < 0.35) { s.v = 0; s.settled = true; }
         }
       },
+      bounds: function (p, H) {
+        var groundY = H - 46, topY = clamp(groundY - p.h0 * this.scale, 40, groundY - 10);
+        return { groundY: groundY, topY: topY };
+      },
       getPos: function (s, p, W, H) {
-        var top = 44, bottom = H - 46;
-        return { x: W / 2, y: top + (s.y / Math.max(p.h0, 0.001)) * (bottom - top) };
+        var b = this.bounds(p, H);
+        return { x: W / 2, y: b.topY + (s.y / Math.max(p.h0, 0.001)) * (b.groundY - b.topY) };
       },
       draw: function (ctx, W, H, s, p, trail, cl) {
-        var bottom = H - 46;
+        var b = this.bounds(p, H);
         ctx.strokeStyle = cl.inkDim; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
-        ctx.beginPath(); ctx.moveTo(30, bottom); ctx.lineTo(W - 30, bottom); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(30, b.groundY); ctx.lineTo(W - 30, b.groundY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(W / 2 - 40, b.topY); ctx.lineTo(W / 2 + 40, b.topY); ctx.stroke();
         ctx.setLineDash([]);
         drawTrail(ctx, trail, cl);
         var pos = this.getPos(s, p, W, H);
@@ -759,6 +836,17 @@
       },
       traceValue: function (s, p) { return p.h0 - s.y; },
       traceLabel: "الارتفاع عن الأرض (م)",
+      dragHint: "اسحب الكرة لأعلى أو أسفل لضبط ارتفاع البداية، ثم أفلتها",
+      drag: {
+        hitRadius: 20,
+        point: function (s, p, W, H) { return ENGINES.bounce.getPos(s, p, W, H); },
+        update: function (s, p, W, H, mx, my) {
+          var groundY = H - 46;
+          p.h0 = clamp((groundY - my) / ENGINES.bounce.scale, 1, 30);
+          s.y = 0; s.v = 0; s.bounces = 0; s.settled = false;
+        },
+        release: function () {}
+      },
       info: function (s, p) {
         return [
           { l: "الزمن", v: fmt(s.t) + " ث" },
@@ -1093,6 +1181,7 @@
   var traceLabelEl = document.getElementById("traceLabel");
   var warnNoteEl = document.getElementById("warnNote");
   var typeSelectEl = document.getElementById("typeSelect");
+  var dragHintEl = document.getElementById("dragHint");
 
   TYPES.forEach(function (t) {
     var o = document.createElement("option");
@@ -1118,6 +1207,14 @@
     traceLabelEl.textContent = ENGINES[current.typeId].traceLabel;
     renderParams(parsed.type);
     resetEngine();
+    var engine = ENGINES[current.typeId];
+    if (engine.dragHint) {
+      dragHintEl.textContent = engine.dragHint;
+      dragHintEl.hidden = false;
+    } else {
+      dragHintEl.hidden = true;
+    }
+    stageCanvas.style.cursor = engine.drag ? "grab" : "default";
   }
 
   typeSelectEl.addEventListener("change", function () {
@@ -1240,11 +1337,58 @@
   var playBtn = document.getElementById("playBtn");
   var playLabel = document.getElementById("playLabel");
   document.getElementById("resetBtn").addEventListener("click", resetEngine);
-  playBtn.addEventListener("click", function () {
-    current.playing = !current.playing;
-    playLabel.textContent = current.playing ? "إيقاف مؤقت" : "تشغيل";
-    playBtn.classList.toggle("on", current.playing);
+  function setPlaying(v) {
+    current.playing = v;
+    playLabel.textContent = v ? "إيقاف مؤقت" : "تشغيل";
+    playBtn.classList.toggle("on", v);
+  }
+  playBtn.addEventListener("click", function () { setPlaying(!current.playing); });
+
+  // ---------- drag interaction ----------
+  function stagePoint(e) {
+    var rect = stageCanvas.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * STAGE_W,
+      y: ((e.clientY - rect.top) / rect.height) * STAGE_H
+    };
+  }
+
+  stageCanvas.addEventListener("pointerdown", function (e) {
+    var engine = ENGINES[current.typeId];
+    if (!engine.drag || !current.state) return;
+    var pt = stagePoint(e);
+    var target = engine.drag.point(current.state, current.params, STAGE_W, STAGE_H);
+    var d = Math.hypot(pt.x - target.x, pt.y - target.y);
+    if (d > engine.drag.hitRadius) return;
+    e.preventDefault();
+    current.dragging = true;
+    stageCanvas.setPointerCapture(e.pointerId);
+    stageCanvas.style.cursor = "grabbing";
+    setPlaying(false);
+    engine.drag.update(current.state, current.params, STAGE_W, STAGE_H, pt.x, pt.y);
   });
+
+  stageCanvas.addEventListener("pointermove", function (e) {
+    if (!current.dragging) return;
+    e.preventDefault();
+    var engine = ENGINES[current.typeId];
+    var pt = stagePoint(e);
+    pt.x = clamp(pt.x, 0, STAGE_W); pt.y = clamp(pt.y, 0, STAGE_H);
+    engine.drag.update(current.state, current.params, STAGE_W, STAGE_H, pt.x, pt.y);
+  });
+
+  function endDrag() {
+    if (!current.dragging) return;
+    current.dragging = false;
+    var engine = ENGINES[current.typeId];
+    engine.drag.release(current.state, current.params);
+    current.trail = []; current.samples = [];
+    renderParams(typeConfig(current.typeId));
+    stageCanvas.style.cursor = "grab";
+    setPlaying(true);
+  }
+  stageCanvas.addEventListener("pointerup", endDrag);
+  stageCanvas.addEventListener("pointercancel", endDrag);
 
   var speeds = [0.5, 1, 2];
   var speedGroup = document.getElementById("speedGroup");
