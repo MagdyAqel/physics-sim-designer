@@ -215,6 +215,28 @@
     border: 1px solid var(--border); border-radius: 8px;
   }
   canvas#stage { touch-action: none; }
+
+  .circuit-palette { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .circuit-chip {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 16px; cursor: grab; touch-action: none; font-family: inherit;
+  }
+  .circuit-chip:hover { border-color: var(--accent); }
+  .circuit-chip .cc-name { font-size: 12px; color: var(--ink-dim); }
+  .circuit-board-wrap { margin-top: 14px; }
+  canvas#circuitBoard {
+    width: 100%; display: block; touch-action: none; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 8px;
+  }
+  .circuit-status {
+    margin-top: 12px; font-size: 13.5px; font-weight: 700; color: var(--ink-dim);
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .circuit-status.closed { color: var(--trace); }
+  .circuit-status::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor;
+  }
   canvas#trace { margin-top: 10px; }
   .drag-hint {
     display: flex; align-items: center; gap: 7px; margin-top: 10px;
@@ -280,14 +302,15 @@
       <span class="tag mono">Rule-Based Physics Engine</span>
     </header>
 
-    <div class="grid">
+    <div class="mode-tabs" id="modeTabs">
+      <button class="tab-btn on" data-mode="text" type="button">وصف نصي</button>
+      <button class="tab-btn" data-mode="studio" type="button">استوديو التصميم</button>
+      <button class="tab-btn" data-mode="circuit" type="button">بناء دائرة كهربائية</button>
+    </div>
+
+    <div class="grid" id="mainGrid">
       <div class="col-left">
         <div class="card">
-          <div class="mode-tabs" id="modeTabs">
-            <button class="tab-btn on" data-mode="text" type="button">وصف نصي</button>
-            <button class="tab-btn" data-mode="studio" type="button">استوديو التصميم</button>
-          </div>
-
           <div id="modeText">
             <textarea id="desc" dir="auto" placeholder="مثال: كرة كتلتها 2 كغ تسقط سقوطًا حرًا من ارتفاع 20 مترًا… أو: دائرة كهربائية بسيطة بجهد 9 فولت ومقاومتين 10 و20 أوم"></textarea>
             <p class="hint">اكتب وصفًا حرًا بالعربية أو الإنجليزية، واذكر أرقامًا إن أمكن (الكتلة، السرعة، الزاوية، الطول…). يمكنك ضبط القيم يدويًا بعد البناء.</p>
@@ -361,6 +384,16 @@
           <div class="readouts" id="readouts"></div>
         </div>
       </div>
+    </div>
+
+    <div id="modeCircuit" class="card" hidden>
+      <p class="eyebrow">استوديو الدوائر — اسحب عنصرًا وأفلته على اللوحة</p>
+      <div class="circuit-palette" id="circuitPalette"></div>
+      <div class="circuit-board-wrap">
+        <canvas id="circuitBoard"></canvas>
+      </div>
+      <p class="hint">اسحب عنصرًا من القائمة أعلاه وأفلته على أحد خطوط اللوحة لتركيبه. اضغط على المفتاح لفتحه أو إغلاقه. اضغط على العلامة "×" الصغيرة لإزالة أي عنصر. أغلق حلقة كاملة تمر بالبطارية والمصباح ليضيء.</p>
+      <div class="circuit-status" id="circuitStatus">الدائرة مفتوحة</div>
     </div>
 
     <footer class="note">يدعم المحرك حاليًا محاكاة الميكانيكا الكلاسيكية والدوائر الكهربائية البسيطة (RC وRL). إن لم يُطابَق وصفك مع أي نوع، اختر النوع يدويًا من القائمة أعلى لوحة المعاملات.</footer>
@@ -1707,13 +1740,17 @@
   // ---------- design studio (pick elements, don't type) ----------
   var modeTextEl = document.getElementById("modeText");
   var modeStudioEl = document.getElementById("modeStudio");
+  var mainGridEl = document.getElementById("mainGrid");
+  var modeCircuitEl = document.getElementById("modeCircuit");
   Array.prototype.forEach.call(document.querySelectorAll("#modeTabs .tab-btn"), function (btn) {
     btn.addEventListener("click", function () {
       Array.prototype.forEach.call(document.querySelectorAll("#modeTabs .tab-btn"), function (b) { b.classList.remove("on"); });
       btn.classList.add("on");
-      var isStudio = btn.dataset.mode === "studio";
-      modeTextEl.hidden = isStudio;
-      modeStudioEl.hidden = !isStudio;
+      var mode = btn.dataset.mode;
+      mainGridEl.hidden = mode === "circuit";
+      modeCircuitEl.hidden = mode !== "circuit";
+      modeTextEl.hidden = mode !== "text";
+      modeStudioEl.hidden = mode !== "studio";
     });
   });
 
@@ -1822,6 +1859,281 @@
     var behavior = (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth";
     document.querySelector(".stage-shell").scrollIntoView({ behavior: behavior, block: "start" });
   });
+
+  // ---------- circuit builder (drag components onto a board, wire them up) ----------
+  function distToSeg(px, py, x1, y1, x2, y2) {
+    var dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
+    var t = len2 > 0 ? ((px - x1) * dx + (py - y1) * dy) / len2 : 0;
+    t = clamp(t, 0, 1);
+    var cx = x1 + dx * t, cy = y1 + dy * t;
+    return Math.hypot(px - cx, py - cy);
+  }
+  function segGeom(x1, y1, x2, y2) {
+    var dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+    var ux = dx / len, uy = dy / len;
+    return { mx: (x1 + x2) / 2, my: (y1 + y2) / 2, ux: ux, uy: uy, px: -uy, py: ux, len: len };
+  }
+
+  function drawWireSeg(ctx, x1, y1, x2, y2, color) {
+    ctx.strokeStyle = color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  function drawBatterySeg(ctx, x1, y1, x2, y2, color) {
+    var g = segGeom(x1, y1, x2, y2), gap = 10;
+    var m1x = g.mx - g.ux * gap, m1y = g.my - g.uy * gap, m2x = g.mx + g.ux * gap, m2y = g.my + g.uy * gap;
+    ctx.strokeStyle = color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(m1x, m1y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(m2x, m2y); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(m1x - g.px * 12, m1y - g.py * 12); ctx.lineTo(m1x + g.px * 12, m1y + g.py * 12); ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(m2x - g.px * 7, m2y - g.py * 7); ctx.lineTo(m2x + g.px * 7, m2y + g.py * 7); ctx.stroke();
+  }
+  function drawResistorSeg(ctx, x1, y1, x2, y2, color) {
+    var g = segGeom(x1, y1, x2, y2), segStart = 0.28, segEnd = 0.72;
+    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 + g.ux * g.len * segStart, y1 + g.uy * g.len * segStart);
+    var n = 6, amp = 9;
+    for (var i = 0; i < n; i++) {
+      var t = segStart + (segEnd - segStart) * ((i + 1) / n);
+      var side = (i % 2 === 0) ? 1 : -1;
+      ctx.lineTo(x1 + g.ux * g.len * t + g.px * amp * side, y1 + g.uy * g.len * t + g.py * amp * side);
+    }
+    ctx.lineTo(x1 + g.ux * g.len * segEnd, y1 + g.uy * g.len * segEnd);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+  function drawLampSeg(ctx, x1, y1, x2, y2, color, lit, cl) {
+    var g = segGeom(x1, y1, x2, y2), r = 14;
+    ctx.strokeStyle = color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    if (lit) {
+      var grad = ctx.createRadialGradient(g.mx, g.my, 2, g.mx, g.my, r * 2.4);
+      grad.addColorStop(0, "rgba(255,205,110,0.85)"); grad.addColorStop(1, "rgba(255,205,110,0)");
+      ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(g.mx, g.my, r * 2.4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = lit ? "#ffd66e" : cl.panel2;
+    ctx.beginPath(); ctx.arc(g.mx, g.my, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(g.mx, g.my, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(g.mx - 6, g.my - 6); ctx.lineTo(g.mx + 6, g.my + 6);
+    ctx.moveTo(g.mx + 6, g.my - 6); ctx.lineTo(g.mx - 6, g.my + 6);
+    ctx.stroke();
+  }
+  function drawSwitchSeg(ctx, x1, y1, x2, y2, color, closed) {
+    var g = segGeom(x1, y1, x2, y2), gap = 14;
+    var m1x = g.mx - g.ux * gap, m1y = g.my - g.uy * gap, m2x = g.mx + g.ux * gap, m2y = g.my + g.uy * gap;
+    ctx.strokeStyle = color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(m1x, m1y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(m2x, m2y); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(m1x, m1y, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(m2x, m2y, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    if (closed) { ctx.moveTo(m1x, m1y); ctx.lineTo(m2x, m2y); }
+    else { ctx.moveTo(m1x, m1y); ctx.lineTo(m1x + g.ux * gap * 0.5 - g.px * 15, m1y + g.uy * gap * 0.5 - g.py * 15); }
+    ctx.stroke();
+  }
+  function drawRemoveBadge(ctx, x, y, cl) {
+    ctx.fillStyle = cl.panel2; ctx.strokeStyle = cl.warn; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 3, y - 3); ctx.lineTo(x + 3, y + 3); ctx.moveTo(x + 3, y - 3); ctx.lineTo(x - 3, y + 3); ctx.stroke();
+  }
+  function drawComponentSeg(ctx, type, x1, y1, x2, y2, color, cl, extra) {
+    if (type === "battery") drawBatterySeg(ctx, x1, y1, x2, y2, color);
+    else if (type === "resistor") drawResistorSeg(ctx, x1, y1, x2, y2, color);
+    else if (type === "lamp") drawLampSeg(ctx, x1, y1, x2, y2, color, !!(extra && extra.lit), cl);
+    else if (type === "switch") drawSwitchSeg(ctx, x1, y1, x2, y2, color, !(extra && extra.closed === false));
+    else drawWireSeg(ctx, x1, y1, x2, y2, color);
+  }
+
+  var CIRCUIT_TYPES = [
+    { id: "battery", label: "بطارية" },
+    { id: "lamp", label: "مصباح" },
+    { id: "switch", label: "مفتاح" },
+    { id: "wire", label: "سلك" },
+    { id: "resistor", label: "مقاومة" }
+  ];
+
+  var CB_W = 720, CB_H = 420, CB_COLS = 6, CB_ROWS = 4, CB_MARGIN = 60;
+  var cbCellW = (CB_W - 2 * CB_MARGIN) / (CB_COLS - 1);
+  var cbCellH = (CB_H - 2 * CB_MARGIN) / (CB_ROWS - 1);
+  function cbX(col) { return CB_MARGIN + col * cbCellW; }
+  function cbY(row) { return CB_MARGIN + row * cbCellH; }
+
+  var CB_EDGES = [];
+  var CB_EDGE_BY_KEY = {};
+  for (var cbr = 0; cbr < CB_ROWS; cbr++) {
+    for (var cbc = 0; cbc < CB_COLS - 1; cbc++) {
+      var he = { key: "h:" + cbc + ":" + cbr, x1: cbX(cbc), y1: cbY(cbr), x2: cbX(cbc + 1), y2: cbY(cbr), a: cbc + "," + cbr, b: (cbc + 1) + "," + cbr };
+      CB_EDGES.push(he); CB_EDGE_BY_KEY[he.key] = he;
+    }
+  }
+  for (var cbc2 = 0; cbc2 < CB_COLS; cbc2++) {
+    for (var cbr2 = 0; cbr2 < CB_ROWS - 1; cbr2++) {
+      var ve = { key: "v:" + cbc2 + ":" + cbr2, x1: cbX(cbc2), y1: cbY(cbr2), x2: cbX(cbc2), y2: cbY(cbr2 + 1), a: cbc2 + "," + cbr2, b: cbc2 + "," + (cbr2 + 1) };
+      CB_EDGES.push(ve); CB_EDGE_BY_KEY[ve.key] = ve;
+    }
+  }
+
+  var circuitComponents = {};
+  var circuitDrag = null;
+
+  function cbFindEdge(px, py) {
+    var best = null, bestD = 40;
+    CB_EDGES.forEach(function (e) {
+      var d = distToSeg(px, py, e.x1, e.y1, e.x2, e.y2);
+      if (d < bestD) { bestD = d; best = e; }
+    });
+    return best;
+  }
+
+  function evaluateCircuit() {
+    var adj = {};
+    function addAdj(a, b, key) {
+      (adj[a] = adj[a] || []).push(b);
+      (adj[b] = adj[b] || []).push(a);
+    }
+    var batteryEdge = null;
+    Object.keys(circuitComponents).forEach(function (key) {
+      var comp = circuitComponents[key], edge = CB_EDGE_BY_KEY[key];
+      if (comp.type === "battery") { if (!batteryEdge) batteryEdge = edge; return; }
+      var conducts = !(comp.type === "switch" && comp.closed === false);
+      if (conducts) addAdj(edge.a, edge.b, key);
+    });
+    var visited = {}, lit = {}, closedLoop = false;
+    if (batteryEdge) {
+      visited[batteryEdge.a] = true;
+      var queue = [batteryEdge.a];
+      while (queue.length) {
+        var cur = queue.shift();
+        (adj[cur] || []).forEach(function (n) { if (!visited[n]) { visited[n] = true; queue.push(n); } });
+      }
+      closedLoop = !!visited[batteryEdge.b];
+      if (closedLoop) {
+        Object.keys(circuitComponents).forEach(function (key) {
+          var comp = circuitComponents[key], edge = CB_EDGE_BY_KEY[key];
+          if (comp.type === "lamp" && visited[edge.a] && visited[edge.b]) lit[key] = true;
+        });
+      }
+    }
+    return { batteryFound: !!batteryEdge, closedLoop: closedLoop, lit: lit, visited: visited };
+  }
+
+  var circuitPaletteEl = document.getElementById("circuitPalette");
+  var circuitBoardCanvas = document.getElementById("circuitBoard");
+  var circuitBoardCtx = setupCanvas(circuitBoardCanvas, CB_W, CB_H);
+  var circuitStatusEl = document.getElementById("circuitStatus");
+
+  function boardPointFromEvent(e) {
+    var rect = circuitBoardCanvas.getBoundingClientRect();
+    return { x: ((e.clientX - rect.left) / rect.width) * CB_W, y: ((e.clientY - rect.top) / rect.height) * CB_H };
+  }
+
+  CIRCUIT_TYPES.forEach(function (ct) {
+    var chip = document.createElement("div");
+    chip.className = "circuit-chip";
+    var mini = document.createElement("canvas");
+    mini.width = 64; mini.height = 36; mini.style.width = "64px"; mini.style.height = "36px";
+    var mctx = mini.getContext("2d");
+    var mcl = colors();
+    drawComponentSeg(mctx, ct.id, 8, 18, 56, 18, mcl.trace, mcl, { lit: ct.id === "lamp", closed: true });
+    var label = document.createElement("span");
+    label.className = "cc-name"; label.textContent = ct.label;
+    chip.appendChild(mini); chip.appendChild(label);
+
+    chip.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      circuitDrag = { type: ct.id, x: -999, y: -999, edgeKey: null };
+      chip.setPointerCapture(e.pointerId);
+      function move(ev) {
+        var pt = boardPointFromEvent(ev);
+        circuitDrag.x = pt.x; circuitDrag.y = pt.y;
+        var edge = cbFindEdge(pt.x, pt.y);
+        circuitDrag.edgeKey = edge ? edge.key : null;
+      }
+      function up(ev) {
+        move(ev);
+        if (circuitDrag.edgeKey) circuitComponents[circuitDrag.edgeKey] = { type: circuitDrag.type, closed: true };
+        circuitDrag = null;
+        chip.removeEventListener("pointermove", move);
+        chip.removeEventListener("pointerup", up);
+        chip.removeEventListener("pointercancel", up);
+      }
+      chip.addEventListener("pointermove", move);
+      chip.addEventListener("pointerup", up);
+      chip.addEventListener("pointercancel", up);
+    });
+    circuitPaletteEl.appendChild(chip);
+  });
+
+  circuitBoardCanvas.addEventListener("pointerdown", function (e) {
+    var pt = boardPointFromEvent(e);
+    var keys = Object.keys(circuitComponents), i, key, edge, g, bx, by;
+    for (i = 0; i < keys.length; i++) {
+      key = keys[i]; edge = CB_EDGE_BY_KEY[key]; g = segGeom(edge.x1, edge.y1, edge.x2, edge.y2);
+      bx = edge.x1 + g.ux * 16 - g.px * 14; by = edge.y1 + g.uy * 16 - g.py * 14;
+      if (Math.hypot(pt.x - bx, pt.y - by) <= 10) { delete circuitComponents[key]; return; }
+    }
+    for (i = 0; i < keys.length; i++) {
+      key = keys[i];
+      var comp = circuitComponents[key];
+      if (comp.type !== "switch") continue;
+      edge = CB_EDGE_BY_KEY[key];
+      if (distToSeg(pt.x, pt.y, edge.x1, edge.y1, edge.x2, edge.y2) <= 18) { comp.closed = comp.closed === false; return; }
+    }
+  });
+
+  function circuitFrame() {
+    if (!modeCircuitEl.hidden) {
+      var cl = colors();
+      var result = evaluateCircuit();
+      circuitBoardCtx.clearRect(0, 0, CB_W, CB_H);
+
+      circuitBoardCtx.fillStyle = cl.grid;
+      for (var r = 0; r < CB_ROWS; r++) for (var c = 0; c < CB_COLS; c++) {
+        circuitBoardCtx.beginPath(); circuitBoardCtx.arc(cbX(c), cbY(r), 2.5, 0, Math.PI * 2); circuitBoardCtx.fill();
+      }
+      circuitBoardCtx.strokeStyle = cl.grid; circuitBoardCtx.lineWidth = 1; circuitBoardCtx.setLineDash([3, 5]);
+      CB_EDGES.forEach(function (e) {
+        if (circuitComponents[e.key]) return;
+        circuitBoardCtx.beginPath(); circuitBoardCtx.moveTo(e.x1, e.y1); circuitBoardCtx.lineTo(e.x2, e.y2); circuitBoardCtx.stroke();
+      });
+      circuitBoardCtx.setLineDash([]);
+
+      Object.keys(circuitComponents).forEach(function (key) {
+        var comp = circuitComponents[key], edge = CB_EDGE_BY_KEY[key];
+        var powered = result.visited[edge.a] && result.visited[edge.b];
+        var color;
+        if (comp.type === "lamp") color = result.lit[key] ? cl.accent : cl.inkDim;
+        else if (comp.type === "battery") color = cl.ink;
+        else color = powered ? cl.trace : cl.inkDim;
+        drawComponentSeg(circuitBoardCtx, comp.type, edge.x1, edge.y1, edge.x2, edge.y2, color, cl, { lit: !!result.lit[key], closed: comp.closed !== false });
+        var g = segGeom(edge.x1, edge.y1, edge.x2, edge.y2);
+        drawRemoveBadge(circuitBoardCtx, edge.x1 + g.ux * 16 - g.px * 14, edge.y1 + g.uy * 16 - g.py * 14, cl);
+      });
+
+      if (circuitDrag) {
+        circuitBoardCtx.globalAlpha = 0.55;
+        var previewEdge = circuitDrag.edgeKey ? CB_EDGE_BY_KEY[circuitDrag.edgeKey] : null;
+        if (previewEdge) {
+          drawComponentSeg(circuitBoardCtx, circuitDrag.type, previewEdge.x1, previewEdge.y1, previewEdge.x2, previewEdge.y2, cl.accent, cl, { lit: false, closed: true });
+        } else if (circuitDrag.x > -100) {
+          circuitBoardCtx.fillStyle = cl.accent;
+          circuitBoardCtx.beginPath(); circuitBoardCtx.arc(circuitDrag.x, circuitDrag.y, 8, 0, Math.PI * 2); circuitBoardCtx.fill();
+        }
+        circuitBoardCtx.globalAlpha = 1;
+      }
+
+      var msg = !result.batteryFound ? "أضف بطارية لتبدأ" : (result.closedLoop ? "الدائرة مغلقة" + (Object.keys(result.lit).length ? " — المصباح مضيء" : "") : "الدائرة مفتوحة");
+      circuitStatusEl.textContent = msg;
+      circuitStatusEl.classList.toggle("closed", result.closedLoop);
+    }
+    requestAnimationFrame(circuitFrame);
+  }
+  requestAnimationFrame(circuitFrame);
 
   // initial simulation
   descEl.value = EXAMPLES[0];
