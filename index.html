@@ -127,6 +127,34 @@
   }
   .chip:hover { color: var(--ink); border-color: var(--accent); }
 
+  .mode-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .tab-btn {
+    flex: 1; background: var(--panel-2); color: var(--ink-dim); border: 1px solid var(--border);
+    border-radius: 7px; padding: 9px 10px; font-size: 13px; font-family: inherit; cursor: pointer;
+  }
+  .tab-btn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+
+  .studio-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px;
+  }
+  .studio-card {
+    text-align: start; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 11px; cursor: pointer; font-family: inherit;
+  }
+  .studio-card:hover { border-color: var(--accent); }
+  .studio-card.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--panel-2)); }
+  .studio-card .sc-name { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+  .studio-card .sc-elements {
+    display: block; margin-top: 4px; font-size: 11px; color: var(--ink-faint); line-height: 1.5;
+  }
+  .studio-config {
+    margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border);
+  }
+  .studio-check {
+    display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; color: var(--ink-dim); cursor: pointer;
+  }
+  .studio-check input { accent-color: var(--accent); width: 15px; height: 15px; }
+
   .build-row { display: flex; gap: 8px; margin-top: 12px; }
   button.primary {
     flex: 1; background: var(--accent); color: var(--accent-ink); border: none;
@@ -251,12 +279,34 @@
     <div class="grid">
       <div class="col-left">
         <div class="card">
-          <p class="eyebrow">وصف المحاكاة</p>
-          <textarea id="desc" dir="auto" placeholder="مثال: كرة كتلتها 2 كغ تسقط سقوطًا حرًا من ارتفاع 20 مترًا… أو: دائرة كهربائية بسيطة بجهد 9 فولت ومقاومتين 10 و20 أوم"></textarea>
-          <p class="hint">اكتب وصفًا حرًا بالعربية أو الإنجليزية، واذكر أرقامًا إن أمكن (الكتلة، السرعة، الزاوية، الطول…). يمكنك ضبط القيم يدويًا بعد البناء.</p>
-          <div class="chips" id="chips"></div>
-          <div class="build-row">
-            <button class="primary" id="buildBtn">بناء المحاكاة</button>
+          <div class="mode-tabs" id="modeTabs">
+            <button class="tab-btn on" data-mode="text" type="button">وصف نصي</button>
+            <button class="tab-btn" data-mode="studio" type="button">استوديو التصميم</button>
+          </div>
+
+          <div id="modeText">
+            <textarea id="desc" dir="auto" placeholder="مثال: كرة كتلتها 2 كغ تسقط سقوطًا حرًا من ارتفاع 20 مترًا… أو: دائرة كهربائية بسيطة بجهد 9 فولت ومقاومتين 10 و20 أوم"></textarea>
+            <p class="hint">اكتب وصفًا حرًا بالعربية أو الإنجليزية، واذكر أرقامًا إن أمكن (الكتلة، السرعة، الزاوية، الطول…). يمكنك ضبط القيم يدويًا بعد البناء.</p>
+            <div class="chips" id="chips"></div>
+            <div class="build-row">
+              <button class="primary" id="buildBtn">بناء المحاكاة</button>
+            </div>
+          </div>
+
+          <div id="modeStudio" hidden>
+            <p class="hint">اختر تجربة من العناصر أدناه، ثم اضبط عناصرها وابنِها.</p>
+            <div class="studio-grid" id="studioGrid"></div>
+            <div class="studio-config" id="studioConfig" hidden>
+              <p class="eyebrow" id="studioConfigTitle">عناصر التجربة</p>
+              <div id="studioElements"></div>
+              <label class="studio-check" id="studioGameRow" hidden>
+                <input type="checkbox" id="studioGameCheck">
+                <span>تفعيل وضع تحدي الهدف</span>
+              </label>
+              <div class="build-row">
+                <button class="primary" id="studioBuildBtn">بناء وتشغيل المحاكاة</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1396,27 +1446,33 @@
 
   function displayVal(pd, v) { return pd.labels ? pd.labels[clamp(Math.round(v), 0, pd.labels.length - 1)] : fmt(v, pd.step); }
 
+  function buildParamRow(pd, value, onChange) {
+    var row = document.createElement("div");
+    row.className = "param-row";
+    var pct = ((value - pd.min) / (pd.max - pd.min)) * 100;
+    row.innerHTML =
+      '<label><span>' + pd.label + (pd.unit ? " (" + pd.unit + ")" : "") + '</span><span class="val mono">' +
+      displayVal(pd, value) + '</span></label>' +
+      '<input type="range" min="' + pd.min + '" max="' + pd.max + '" step="' + pd.step + '" value="' + value + '" style="--fill:' + pct + '%">';
+    var input = row.querySelector("input");
+    var valEl = row.querySelector(".val");
+    input.addEventListener("input", function () {
+      var v = parseFloat(input.value);
+      valEl.textContent = displayVal(pd, v);
+      var p = ((v - pd.min) / (pd.max - pd.min)) * 100;
+      input.style.setProperty("--fill", p + "%");
+      onChange(v);
+    });
+    return row;
+  }
+
   function renderParams(cfg) {
     paramsEl.innerHTML = "";
     cfg.params.forEach(function (pd) {
-      var row = document.createElement("div");
-      row.className = "param-row";
-      var pct = ((current.params[pd.key] - pd.min) / (pd.max - pd.min)) * 100;
-      row.innerHTML =
-        '<label><span>' + pd.label + (pd.unit ? " (" + pd.unit + ")" : "") + '</span><span class="val mono">' +
-        displayVal(pd, current.params[pd.key]) + '</span></label>' +
-        '<input type="range" min="' + pd.min + '" max="' + pd.max + '" step="' + pd.step + '" value="' + current.params[pd.key] + '" style="--fill:' + pct + '%">';
-      var input = row.querySelector("input");
-      var valEl = row.querySelector(".val");
-      input.addEventListener("input", function () {
-        var v = parseFloat(input.value);
+      paramsEl.appendChild(buildParamRow(pd, current.params[pd.key], function (v) {
         current.params[pd.key] = v;
-        valEl.textContent = displayVal(pd, v);
-        var p = ((v - pd.min) / (pd.max - pd.min)) * 100;
-        input.style.setProperty("--fill", p + "%");
         resetEngine();
-      });
-      paramsEl.appendChild(row);
+      }));
     });
   }
 
@@ -1638,6 +1694,68 @@
     c.title = ex;
     c.addEventListener("click", function () { descEl.value = ex; build(); });
     chipsEl.appendChild(c);
+  });
+
+  // ---------- design studio (pick elements, don't type) ----------
+  var modeTextEl = document.getElementById("modeText");
+  var modeStudioEl = document.getElementById("modeStudio");
+  Array.prototype.forEach.call(document.querySelectorAll("#modeTabs .tab-btn"), function (btn) {
+    btn.addEventListener("click", function () {
+      Array.prototype.forEach.call(document.querySelectorAll("#modeTabs .tab-btn"), function (b) { b.classList.remove("on"); });
+      btn.classList.add("on");
+      var isStudio = btn.dataset.mode === "studio";
+      modeTextEl.hidden = isStudio;
+      modeStudioEl.hidden = !isStudio;
+    });
+  });
+
+  var studioGridEl = document.getElementById("studioGrid");
+  var studioConfigEl = document.getElementById("studioConfig");
+  var studioConfigTitleEl = document.getElementById("studioConfigTitle");
+  var studioElementsEl = document.getElementById("studioElements");
+  var studioGameRowEl = document.getElementById("studioGameRow");
+  var studioGameCheckEl = document.getElementById("studioGameCheck");
+  var studioBuildBtn = document.getElementById("studioBuildBtn");
+  var studioTypeId = null;
+  var studioParams = {};
+
+  TYPES.forEach(function (t) {
+    var card = document.createElement("button");
+    card.type = "button";
+    card.className = "studio-card";
+    var elementNames = t.params.map(function (pd) { return pd.label; }).join(" · ");
+    card.innerHTML = '<span class="sc-name">' + t.label + '</span><span class="sc-elements">' + elementNames + '</span>';
+    card.addEventListener("click", function () { selectStudioType(t.id); });
+    card.dataset.type = t.id;
+    studioGridEl.appendChild(card);
+  });
+
+  function selectStudioType(id) {
+    studioTypeId = id;
+    var cfg = typeConfig(id);
+    var engine = ENGINES[id];
+    Array.prototype.forEach.call(studioGridEl.children, function (c) { c.classList.toggle("on", c.dataset.type === id); });
+    studioConfigTitleEl.textContent = "عناصر تجربة: " + cfg.label;
+    studioParams = {};
+    cfg.params.forEach(function (pd) { studioParams[pd.key] = pd.def; });
+    studioElementsEl.innerHTML = "";
+    cfg.params.forEach(function (pd) {
+      studioElementsEl.appendChild(buildParamRow(pd, studioParams[pd.key], function (v) { studioParams[pd.key] = v; }));
+    });
+    studioGameRowEl.hidden = !engine.game;
+    studioGameCheckEl.checked = false;
+    studioConfigEl.hidden = false;
+  }
+
+  studioBuildBtn.addEventListener("click", function () {
+    if (!studioTypeId) return;
+    var cfg = typeConfig(studioTypeId);
+    applyBuild({ type: cfg, params: studioParams, score: 1 });
+    if (studioGameCheckEl.checked && ENGINES[studioTypeId].game && !gameToggleBtn.hidden) {
+      gameToggleBtn.click();
+    }
+    var behavior = (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth";
+    document.querySelector(".stage-shell").scrollIntoView({ behavior: behavior, block: "start" });
   });
 
   // initial simulation
